@@ -230,7 +230,6 @@ void
 thread_unblock (struct thread *t) 
 {
   enum intr_level old_level;
-
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
@@ -467,6 +466,7 @@ next_thread_to_run (void)
     return idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  /* return 대신 priority를 계산 */
 }
 
 /* Completes a thread switch by activating the new thread's page
