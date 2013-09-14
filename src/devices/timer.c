@@ -100,29 +100,27 @@ timer_elapsed (int64_t then)
 }
 
 /* Comparison function for sorting wakeup */
-void
+bool
 wake_cmp (struct list_elem *a, struct list_elem *b, void *aux)
 {
   struct thread *ap, *bp;
   ap = list_entry (a, struct thread, elem);
   bp = list_entry (b, struct thread, elem);
-  if (ap->wakeup < bp->wakeup)
-    return true;
-  else
-    return false;
+  
+  if (ap->wakeup < bp->wakeup) return true;
+  else return false;
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t tick) 
 {
-  int64_t start;
+  int64_t start = timer_ticks ();
   struct thread *t;
   enum intr_level old_level;
   ASSERT (intr_get_level () == INTR_ON);
 
   old_level = intr_disable ();
-  start = timer_ticks ();
   t = thread_current ();
 
   t->wakeup = start+tick;
@@ -137,20 +135,15 @@ void
 timer_awake (void)
 {
   if (!sleep_tids) return;
- 
   struct thread *t;
-  enum intr_level old_level;
 
   while (sleep_tids){
     t = list_entry (list_front (&sleep_list), struct thread, elem);
 
     if (t->wakeup <= ticks){
-      old_level = intr_disable ();
       list_pop_front (&sleep_list);
       sleep_tids--;
-      if (sleep_tids == 0) printf("sleep 0\n");
       thread_unblock (t);
-      intr_set_level (old_level);
     }
     else
       break;
