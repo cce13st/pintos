@@ -193,7 +193,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  list_init (&t->locks_wait);
+  //list_init (&t->locks_wait);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -322,7 +322,7 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
-/* Priority donation */
+/* Priority donation 
 void
 priority_donate (struct thread *t)
 {
@@ -338,14 +338,13 @@ priority_donate (struct thread *t)
       t->priority = tp->priority;
     ittr = list_next (&ittr);
   }
-}
+}*/
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  thread_yield();
 }
 
 /* Returns the current thread's priority. */
