@@ -88,7 +88,6 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int origin;                         /* Original priority (before priority donation) */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -103,6 +102,7 @@ struct thread
     
     /* Added in Project 1 */
     int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
+    int origin;                         /* Original priority (before priority donation) */
     struct list locks_wait;
   };
 

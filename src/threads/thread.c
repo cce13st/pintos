@@ -193,7 +193,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  //list_init (&t->locks_wait);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -211,6 +210,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  if (priority > thread_current ()->priority)
+    thread_yield ();
 
   return tid;
 }
@@ -322,29 +324,15 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
-/* Priority donation 
-void
-priority_donate (struct thread *t)
-{
-  struct list_elem *ittr;
-  struct thread *tp;
-  struct semaphore *sema;
-  ittr = list_front (&t->locks_wait);
-
-  while (ittr != list_tail (&t->locks_wait)){
-    //sema = &list_entry (ittr, struct semaphore_elem, elem)->semaphore;
-    tp = list_entry (list_front (&sema->waiters), struct thread, elem);
-    if (priority_cmp (tp, t, NULL))
-      t->priority = tp->priority;
-    ittr = list_next (&ittr);
-  }
-}*/
-
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread *t = thread_current();
+  t->priority = new_priority;
+  t->origin = new_priority;
+  list_sort (&ready_list, priority_cmp, NULL);
+  thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -471,6 +459,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->origin = priority;
   t->magic = THREAD_MAGIC;
+  list_init (&t->locks_wait);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -498,7 +487,6 @@ next_thread_to_run (void)
     return idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
-  /* return 대신 priority를 계산 */
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -579,7 +567,9 @@ allocate_tid (void)
 
   lock_acquire (&tid_lock);
   tid = next_tid++;
+  //printf("tid :%d, priority :%d\n", tid, thread_get_priority());
   lock_release (&tid_lock);
+  //printf("realeased\n");
 
   return tid;
 }
