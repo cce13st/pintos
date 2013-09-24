@@ -88,7 +88,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
+    int origin;                         /* Original priority (before priority donation) */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -100,6 +100,10 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    
+    /* Added in Project 1 */
+    int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
+    struct list locks_wait;
   };
 
 /* If false (default), use round-robin scheduler.
