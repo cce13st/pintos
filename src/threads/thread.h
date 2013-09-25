@@ -104,6 +104,7 @@ struct thread
     int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
     int origin;                         /* Original priority (before priority donation) */
     struct lock *waiting;
+    struct list lock_holding;
   };
 
 /* If false (default), use round-robin scheduler.

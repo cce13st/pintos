@@ -64,9 +64,30 @@ priority_donate (struct lock *lock)
 void
 priority_release (struct lock *lock)
 {
-  struct thread *hold;
+  struct thread *hold, *tp;
+  struct list_elem *ittr, *tail;
+  struct lock *lp;
   hold = lock->holder;
   hold->priority = hold->origin;
+
+  if (list_empty (&hold->lock_holding))
+    return;
+
+  ittr = list_front (&hold->lock_holding);
+  tail = list_tail (&hold->lock_holding);
+  while (ittr != tail){
+    lp = list_entry (ittr, struct lock, elem);
+    if (list_empty (&lp->semaphore.waiters)){
+      ittr = list_next(ittr);
+      continue;
+    }
+    tp = list_entry (list_front (&lp->semaphore.waiters), struct thread, elem);
+
+    if (tp->priority > hold->priority)
+      hold->priority = tp->priority;
+
+    ittr = list_next (ittr);
+  }
 }
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
@@ -243,6 +264,7 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
   lock->holder = t;
   t->waiting = NULL;
+  list_push_back (&t->lock_holding, &lock->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -277,6 +299,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  list_remove (&lock->elem);
   priority_release (lock);
   lock->holder = NULL;
   sema_up (&lock->semaphore);
