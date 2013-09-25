@@ -54,11 +54,10 @@ priority_donate (struct lock *lock)
     return;
 
   curr = thread_current ();
-  if (curr->priority > hold->priority){
-    hold->priority = curr->priority;
-  }
   if (hold->waiting != NULL)
     priority_donate (hold->waiting);
+  if (curr->priority > hold->priority)
+    hold->priority = curr->priority;
 
   thread_yield ();
 }
@@ -178,9 +177,11 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   sema->value++;
-  if (!list_empty (&sema->waiters))
+  if (!list_empty (&sema->waiters)){
+    list_sort (&sema->waiters, priority_cmp_synch, NULL);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
   intr_set_level (old_level);
 }
 
