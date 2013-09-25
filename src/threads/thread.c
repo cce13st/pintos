@@ -77,6 +77,8 @@ priority_cmp (struct list_elem *a, struct list_elem *b, void *aux)
   struct thread *ap, *bp;
   ap = list_entry (a, struct thread, elem);
   bp = list_entry (b, struct thread, elem);
+  if (ap == NULL || bp == NULL)
+    return true;
   if (ap->priority > bp->priority)
     return true;
   else
@@ -211,9 +213,6 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  if (priority > thread_current ()->priority)
-    thread_yield ();
-
   return tid;
 }
 
@@ -251,6 +250,8 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_insert_ordered (&ready_list, &t->elem, priority_cmp, NULL);
   t->status = THREAD_READY;
+  if (thread_current () != idle_thread && thread_current ()->priority < t->priority)
+    thread_yield ();
   intr_set_level (old_level);
 }
 
@@ -332,7 +333,8 @@ thread_set_priority (int new_priority)
   t->priority = new_priority;
   t->origin = new_priority;
   list_sort (&ready_list, priority_cmp, NULL);
-  thread_yield();
+//  if (thread_current () != idle_thread)
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */

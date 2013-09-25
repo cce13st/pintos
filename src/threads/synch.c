@@ -38,7 +38,7 @@ priority_cmp_synch (struct list_elem *a, struct list_elem *b, void *aux)
   struct thread *ap, *bp;
   ap = list_entry (a, struct thread, elem);
   bp = list_entry (b, struct thread, elem);
-  if (ap->priority > bp->priority)
+  if (ap->priority >= bp->priority)
     return true;
   else
     return false;
@@ -48,28 +48,39 @@ priority_cmp_synch (struct list_elem *a, struct list_elem *b, void *aux)
 void
 priority_donate (struct lock *lock)
 {
-  struct thread *tp, *hold;
+  struct thread *curr, *hold;
   struct lock *lp;
-  struct list_elem *ittr;
-
+  struct list_elem *ittr, *tail;
+  
   hold = lock->holder;
-  if (list_empty (&hold->locks_wait))
+  if (hold == NULL)
     return;
 
+  curr = thread_current ();
+  if (curr->priority > hold->priority)
+    hold->priority = curr->priority;
+/*  int size =0;
   ittr = list_front (&hold->locks_wait);
-
-  while (ittr != list_tail (&hold->locks_wait)){
+  tail = list_tail (&hold->locks_wait);
+  while (tail != ittr){
+    size++;
+    printf ("%d %d ,", ittr, ittr->next);
     lp = list_entry (ittr, struct lock, elem);
-    if (list_empty (&lp->semaphore.waiters))
-      return;
-    tp = list_entry (list_front (&lp->semaphore.waiters), struct thread, elem);
+    printf ("%d\n", lp->holder->tid);
 
-    if (hold->priority < tp->priority){
-      hold->priority = tp->priority;
-      //printf("Donated -> %d\n", thread_get_priority());
-    }
-    
-    ittr = list_next(ittr);
+    ittr = list_next (ittr);
+  }
+  
+  printf ("\ntid :%d, locks_wait :%d\n", hold->tid, size);
+*/
+  if (list_size (&hold->locks_wait) < 2)
+    return;
+  ittr = list_front (&hold->locks_wait);
+  tail = list_tail (&hold->locks_wait);
+  while (tail != ittr){
+    lp = list_entry (ittr, struct lock, elem);
+    priority_donate (lp);
+    ittr = list_next (ittr);
   }
 }
 
@@ -77,8 +88,32 @@ priority_donate (struct lock *lock)
 void
 priority_release (struct lock *lock)
 {
-  struct thread *hold;
+  struct thread *hold, *tp;
+  struct list_elem *ittr, *tail;
+  struct lock *lp;
+
+  hold = lock->holder;
   hold->priority = hold->origin;
+
+  if (list_empty (&hold->locks_wait))
+    return;
+
+  ittr = list_front (&hold->locks_wait);
+  tail = list_tail (&hold->locks_wait);
+  while (tail != ittr){
+    lp = list_entry (ittr, struct lock, elem);
+    if (list_empty (&lp->semaphore.waiters)){
+      ittr = list_next(ittr);
+      continue;
+    }
+    tp = list_entry (list_front (&lp->semaphore.waiters), struct thread, elem);
+
+    if (tp->priority > hold->priority){
+      hold->priority = tp->priority;
+    }
+    
+    ittr = list_next(ittr);
+  }
 }
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
@@ -165,10 +200,10 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+  sema->value++;
   if (!list_empty (&sema->waiters))
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
-  sema->value++;
   intr_set_level (old_level);
 }
 
@@ -244,16 +279,16 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
+  struct thread *t;
+  t = thread_current ();
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  struct thread *t;
-  t = thread_current ();
-  lock->holder = t;
-  priority_donate(lock);
-  sema_down (&lock->semaphore);
+  priority_donate (lock);
   list_push_back (&t->locks_wait, &lock->elem);
+  sema_down (&lock->semaphore);
+  lock->holder = t;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -288,10 +323,10 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-  sema_up (&lock->semaphore);
   list_remove (&lock->elem);
   priority_release (lock);
+  lock->holder = NULL;
+  sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
