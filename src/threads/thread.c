@@ -330,7 +330,8 @@ void
 thread_set_priority (int new_priority) 
 {
   struct thread *t = thread_current();
-  t->priority = new_priority;
+  if (t->origin == t->priority)
+    t->priority = new_priority;
   t->origin = new_priority;
   list_sort (&ready_list, priority_cmp, NULL);
 //  if (thread_current () != idle_thread)

@@ -54,10 +54,13 @@ priority_donate (struct lock *lock)
     return;
 
   curr = thread_current ();
-  if (curr->priority > hold->priority)
+  if (curr->priority > hold->priority){
     hold->priority = curr->priority;
+  }
   if (hold->waiting != NULL)
     priority_donate (hold->waiting);
+
+  thread_yield ();
 }
 
 /* Release function for priority donation */
