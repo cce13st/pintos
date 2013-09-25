@@ -461,7 +461,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->origin = priority;
   t->magic = THREAD_MAGIC;
-  list_init (&t->locks_wait);
+  t->waiting = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

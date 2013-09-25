@@ -103,7 +103,7 @@ struct thread
     /* Added in Project 1 */
     int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
     int origin;                         /* Original priority (before priority donation) */
-    struct list locks_wait;
+    struct lock *waiting;
   };
 
 /* If false (default), use round-robin scheduler.
