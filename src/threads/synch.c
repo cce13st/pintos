@@ -130,7 +130,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, priority_cmp_synch, NULL);
+      list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
   sema->value--;
@@ -183,6 +183,7 @@ sema_up (struct semaphore *sema)
                                 struct thread, elem));
   }
   intr_set_level (old_level);
+  thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
@@ -258,11 +259,11 @@ void
 lock_acquire (struct lock *lock)
 {
   struct thread *t;
-  t = thread_current ();
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  t = thread_current ();
   t->waiting = lock;
   priority_donate (lock);
   sema_down (&lock->semaphore);
@@ -338,6 +339,19 @@ cond_init (struct condition *cond)
   list_init (&cond->waiters);
 }
 
+bool
+cond_cmp (struct list_elem *a, struct list_elem *b, void *aux)
+{
+  int ap, bp;
+  ap = list_entry (list_min 
+                    (&list_entry (a, struct semaphore_elem, elem)->semaphore.waiters, priority_cmp_synch, NULL),
+                    struct thread, elem)->priority;
+  bp = list_entry (list_min
+                    (&list_entry (b, struct semaphore_elem, elem)->semaphore.waiters, priority_cmp_synch, NULL),
+                    struct thread, elem)->priority;
+  return ap > bp;
+}
+
 /* Atomically releases LOCK and waits for COND to be signaled by
    some other piece of code.  After COND is signaled, LOCK is
    reacquired before returning.  LOCK must be held before calling
@@ -369,7 +383,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_insert_ordered (&cond->waiters, &waiter.elem, priority_cmp_synch, NULL);
+  list_push_back (&cond->waiters, &waiter.elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -390,9 +404,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
+  if (!list_empty (&cond->waiters)){
+    list_sort (&cond->waiters, cond_cmp, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
