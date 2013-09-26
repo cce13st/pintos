@@ -370,9 +370,20 @@ cond_wait (struct condition *cond, struct lock *lock)
   
   sema_init (&waiter.semaphore, 0);
   list_insert_ordered (&cond->waiters, &waiter.elem, priority_cmp_synch, NULL);
+  //list_push_back(&cond->waiters, &waiter.elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
+}
+
+bool cond_cmp(struct list_elem *e1, struct list_elem *e2, void *aux)
+{
+	int max1, max2;
+
+	max1 = list_entry( list_min(&list_entry(e1, struct semaphore_elem, elem)->semaphore.waiters, priority_cmp_synch, NULL), struct thread, elem)-> priority;
+	max2 = list_entry( list_min(&list_entry(e2, struct semaphore_elem, elem)->semaphore.waiters, priority_cmp_synch, NULL), struct thread, elem)-> priority;
+
+	return max1 > max2;
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
@@ -390,9 +401,12 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
+  if (!list_empty (&cond->waiters)) {
+	list_sort( &cond->waiters, cond_cmp, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+
+	}
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
