@@ -459,6 +459,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->origin = priority;
   t->magic = THREAD_MAGIC;
+  t->lock = NULL;
   list_init (&t->locks_wait);
 }
 

@@ -45,41 +45,74 @@ priority_cmp_synch (struct list_elem *a, struct list_elem *b, void *aux)
 }
 
 /* Priority donation */ 
+
+		
 void
 priority_donate (struct lock *lock)
 {
   struct thread *tp, *hold;
   struct lock *lp;
-  struct list_elem *ittr;
+  struct list_elem *ittr, *tail;
 
   hold = lock->holder;
+  //ASSERT(!list_empty(&hold->locks_wait)); -> that is, it's empty!
   if (list_empty (&hold->locks_wait))
     return;
 
   ittr = list_front (&hold->locks_wait);
-
-  while (ittr != list_tail (&hold->locks_wait)){
-    lp = list_entry (ittr, struct lock, elem);
-    if (list_empty (&lp->semaphore.waiters))
-      return;
-    tp = list_entry (list_front (&lp->semaphore.waiters), struct thread, elem);
-
-    if (hold->priority < tp->priority){
+  //tail = list_end(&hold -> locks_wait);
+  while (ittr != list_end(&hold->locks_wait)){
+	lp = list_entry (ittr, struct lock, elem);
+	if (list_empty (&lp->semaphore.waiters))
+			return;
+	tp = list_entry (list_tail(&lp->semaphore.waiters), struct thread, elem);
+	//the problem is tp->priority. Page Fault.i
+	//tp was reversed. So we have to use list_tail.
+	if (hold->priority < tp->priority){
+	  //ASSERT(false);
       hold->priority = tp->priority;
-      //printf("Donated -> %d\n", thread_get_priority());
-    }
+	  //thread_set_priority(tp->priority);
+	}
     
     ittr = list_next(ittr);
+
   }
 }
 
+
+//iteration, while loop modification!!!!!!/////:
 /* Release function for priority donation */
 void
 priority_release (struct lock *lock)
 {
-  struct thread *hold;
+  struct thread *hold, *t, *max, *del;
+
+  t = thread_current();
+  hold = lock->holder; //added by soyeon
   hold->priority = hold->origin;
+
+  if (list_empty(&t->locks_wait)) {
+		  hold->priority = hold->priority;
+  		  return;
+  }
+  printf("size : %d\n", list_size(&t->locks_wait));
+  list_reverse(&t->locks_wait);
+  del = list_entry(list_head(&t->locks_wait), struct thread, elem);
+  printf("del one : %d\n", del->priority);
+
+  list_remove(list_front(&t->locks_wait));
+  //list_remove(list_prev(list_tail(&t->locks_wait)));
+//  list_sort(t->locks_wait, priority_cmp_synch,NULL);
+  max = list_entry(list_head(&t->locks_wait),
+				  struct thread,elem);
+  printf("max : %d\n", max->priority);
+  if (max->priority >= hold->origin) {
+	  hold -> priority = max->priority;
+  }
+  printf("hold: %d\n", hold->priority);
+  //printf("%d %d\n", hold->priority,hold->origin);
 }
+
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -166,9 +199,12 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    //thread_unblock (list_entry (list_pop_front (&sema->waiters),
+    //                            struct thread, elem));
+	thread_unblock(list_entry (list_pop_back (&sema->waiters),
+							struct thread, elem));
   sema->value++;
+  thread_yield();
   intr_set_level (old_level);
 }
 
@@ -249,12 +285,31 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   struct thread *t;
+/*
   t = thread_current ();
   lock->holder = t;
   priority_donate(lock);
   sema_down (&lock->semaphore);
   list_push_back (&t->locks_wait, &lock->elem);
-}
+
+*/  
+  t = thread_current();
+  if (lock->holder != NULL) {
+		  t->lock = lock;
+		  //Using list_insert_ordered instead of list_push_back;
+		  list_insert_ordered( &lock->holder->locks_wait, &t->lock_elem,
+						  priority_cmp_synch,NULL);
+		  //ASSERT(!list_empty(&t->locks_wait))
+		  priority_donate(lock);
+		  //printf("lock's priority : %d, t's priority: %d\n", lock->holder->priority, t->priority); 
+		  //ASSERT(false);
+  }
+  sema_down(&lock->semaphore);
+  lock->holder = t;
+//  lock->holder->priority = thread_get_priority();
+ 
+
+ }
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -288,10 +343,12 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-  sema_up (&lock->semaphore);
-  list_remove (&lock->elem);
+//  list_remove(&lock ->elem);
   priority_release (lock);
+  lock->holder = NULL;
+  sema_up (&lock->semaphore); //sema_up -> soyeon added thread_yield();
+  //list_remove (&lock->elem); //ERROR POINT!!!!
+  //priority_release (lock);
 }
 
 /* Returns true if the current thread holds LOCK, false

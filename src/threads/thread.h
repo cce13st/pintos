@@ -91,6 +91,7 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+	struct list_elem lock_elem;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -104,6 +105,8 @@ struct thread
     int64_t wakeup;                     /* Remaining time for wakeup from timer_sleep */
     int origin;                         /* Original priority (before priority donation) */
     struct list locks_wait;
+	struct lock *lock;
+
   };
 
 /* If false (default), use round-robin scheduler.
