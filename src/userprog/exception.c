@@ -148,6 +148,14 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /* Modified part - there is possibility that user can pass a
+   * null pointer, a pointer to unmapped virtual memory, or
+   * a pointer to kernel virtual address space.
+   */
+  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
+     sys_exit(-1);
+
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
