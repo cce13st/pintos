@@ -34,6 +34,7 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -45,15 +46,57 @@ process_execute (const char *file_name)
   return tid;
 }
 
+static void *
+args_passing (void *sp, char *f_name)
+{
+  void *sp_origin = sp;
+  void *argv[200];
+  char *file_name, *token, *save_ptr;
+  file_name = strtok_r (f_name, " ", &save_ptr);
+  int argc = 0, align = 0, len;
+
+  token = file_name;
+  for (token = strtok_r (f_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+    len = strlen (token);
+    sp -= len;
+    strlcpy (sp, token, len);
+    argv[argc] = sp;
+    align += len;
+    ++argc;
+  }
+
+  align %= 4;
+  if (align > 0)
+    sp -= align;
+
+  sp -= sizeof (char *);
+  strlcpy (sp, NULL, sizeof (char *));
+
+  int i = argc-1;
+  while (i>=0){
+    sp -= sizeof (char *);
+    strlcpy (sp, argv[i], sizeof (char *));
+    i--;
+  }
+
+  sp -= sizeof (int);
+  strlcpy (sp, argc, sizeof (int));
+  sp -= sizeof (void *);
+  strlcpy (sp, 0, sizeof (void *));
+
+  return sp;
+}
+
 /* A thread function that loads a user process and makes it start
    running. */
 static void
 start_process (void *f_name)
 {
-  char *file_name = f_name;
+  char *file_name, *save_ptr;
   struct intr_frame if_;
   bool success;
 
+  file_name = strtok_r (f_name, " ", &save_ptr);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -65,6 +108,8 @@ start_process (void *f_name)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+ 
+  if_.esp = args_passing (if_.esp, f_name); 
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
