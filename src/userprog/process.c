@@ -30,7 +30,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy, *save_ptr, *fn;
   tid_t tid;
-//  fn = strtok_r (file_name, " ", &save_ptr);
+  fn = strtok_r (file_name, " ", &save_ptr);
 
   fn = file_name;
   /* Make a copy of FILE_NAME.
