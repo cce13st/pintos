@@ -48,21 +48,18 @@ process_execute (const char *file_name)
 static void *
 args_passing (void *sp, char *f_name)
 {
-  char *token, *save_ptr, *token_copy;
+  char *token, *save_ptr;
   void *argv[200];
   int argc = 0, align = 0, len, cmd_len;
 
   cmd_len = strlen(f_name);
   sp -= cmd_len+1;
   for (token = strtok_r (f_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
-    token_copy = palloc_get_page (0);
-    strlcpy (token_copy, token, PGSIZE);
-    len = strlen (token_copy);
-    strlcpy (sp, token_copy, len+1);
+    len = strlen (token);
+    strlcpy (sp, token, len+1);
     argv[argc] = sp;
     align += len+1;
     ++argc;
-    palloc_free_page (token_copy);
     sp += len+1;
   }
   argv[argc] = NULL;
@@ -100,6 +97,7 @@ start_process (void *f_name)
   strlcpy (fn_copy, f_name, PGSIZE);
 
   file_name = strtok_r (f_name, " ", &save_ptr);
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -108,13 +106,13 @@ start_process (void *f_name)
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
+  palloc_free_page (f_name);
   if (!success) 
     thread_exit ();
 
   if_.esp = args_passing (if_.esp, fn_copy);
-  hex_dump ((int) if_.esp, if_.esp, 28, true);
-
+  palloc_free_page (fn_copy);
+  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its

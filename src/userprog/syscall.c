@@ -1,12 +1,14 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
 static void syscall_handler (struct intr_frame *);
-static void syscall_exit (int);
-static void syscall_halt (void);
+static void syscall_exit (struct intr_frame *);
+static void syscall_halt (struct intr_frame *);
+static int syscall_write (struct intr_frame *);
 
 void
 syscall_init (void) 
@@ -18,36 +20,47 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   int syscall_n;
-  printf ("syscall\n");
-/*  memcpy = (&syscall_n, f->esp, sizeof (int));
-  f->esp += sizeof (int);
-
-  printf ("system call! - %d\n", syscall_n);
-
-   Switch-case for system call number 
+  memcpy (&syscall_n, f->esp, sizeof (int));
+//  hex_dump ((int) f->esp, f->esp, 128, true);
+  
+  /*  Switch-case for system call number */
   switch (syscall_n){
+    case SYS_HALT:
+      syscall_halt (f);
     case SYS_EXIT:
-      syscall_halt ();
-    case SYS_EXIT:
-      int status;
-      memcpy = (&status, f->esp, sizeof (int));
-      syscall_exit (status);
-    default :
-      printf ("Syscall argument error\n");
-  }*/
-
-  thread_exit ();
+      syscall_exit (f);
+    case SYS_WRITE:  
+      syscall_write (f);
+  }
 }
 
 static void
-syscall_halt (void)
+syscall_halt (struct intr_frame *f)
 {
-  shutdown_power_off ();
+  power_off ();
 }
 
 static void
-syscall_exit (int status)
+syscall_exit (struct intr_frame *f)
 {
+  int status;
+  memcpy (&status, f->esp, sizeof (int));
+  f->esp += 4;
   printf ("%s: exit(%d)\n", thread_name (), status);
   thread_exit ();
+}
+
+static int
+syscall_write (struct intr_frame *f)
+{
+  int fd;
+  void *buffer;
+  unsigned size;
+  memcpy (&fd, f->esp + 20, sizeof (int));
+  memcpy (&buffer, f->esp + 24, sizeof (void *));
+  memcpy (&fd, f->esp + 28, sizeof (unsigned));
+  if (fd == 1){
+    putbuf (buffer, size);
+    f->eax = size;
+  }
 }
