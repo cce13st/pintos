@@ -28,9 +28,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *tn_copy, *fp, *t_name;
+  char *fn_copy;
   tid_t tid;
-  int i = 0;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,22 +37,9 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
-  tn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  fp = fn_copy;
-  while (*fp != ' ' && *fp != 0){
-    fp++;
-    i++;
-  }
- 
-  strlcpy (t_name, fn_copy, i+1);
-  t_name[i+1] = 0;
-  strlcpy (tn_copy, t_name, PGSIZE);
-
+  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (tn_copy, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -63,7 +49,7 @@ static void *
 args_passing (void *sp, char *f_name)
 {
   char *token, *save_ptr;
-  void *argv[200];
+  void *argv[50];
   int argc = 0, align = 0, len, cmd_len;
 
   cmd_len = strlen(f_name);
@@ -103,28 +89,26 @@ args_passing (void *sp, char *f_name)
 static void
 start_process (void *f_name)
 {
-  char *load_name, *save_ptr, *fn_copy;
+  char *file_name = f_name;
   struct intr_frame if_;
   bool success;
   printf ("start_process\n");
-  fn_copy = palloc_get_page (0);
-  strlcpy (fn_copy, f_name, PGSIZE);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (fn_copy, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   if (!success) 
     thread_exit ();
 
-  if_.esp = args_passing (if_.esp, fn_copy);
+  if_.esp = args_passing (if_.esp, file_name);
   hex_dump ((int) if_.esp, if_.esp, 40, true);  
-  
-  palloc_free_page (fn_copy);
+  palloc_free_page (file_name); 
+ 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its

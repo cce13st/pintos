@@ -43,8 +43,8 @@ static void
 syscall_exit (struct intr_frame *f)
 {
   int status = *(int *)(f->esp + 1);
-  f->esp += 1;
   printf ("%s: exit(%d)\n", thread_name (), status);
+  f->eax = status;
   thread_exit ();
 }
 
