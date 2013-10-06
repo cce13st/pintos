@@ -30,18 +30,16 @@ process_execute (const char *file_name)
 {
   char *fn_copy, *save_ptr, *fn;
   tid_t tid;
-  fn = strtok_r (file_name, " ", &save_ptr);
-
-  fn = file_name;
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, fn, PGSIZE);
+  strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -50,40 +48,41 @@ process_execute (const char *file_name)
 static void *
 args_passing (void *sp, char *f_name)
 {
-  void *sp_origin = sp;
+  char *token, *save_ptr, *token_copy;
   void *argv[200];
-  char *file_name, *token, *save_ptr;
-  file_name = strtok_r (f_name, " ", &save_ptr);
-  int argc = 0, align = 0, len;
+  int argc = 0, align = 0, len, cmd_len;
 
-  token = file_name;
+  cmd_len = strlen(f_name);
+  sp -= cmd_len+1;
   for (token = strtok_r (f_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
-    len = strlen (token);
-    sp -= len;
-    strlcpy (sp, token, len);
+    token_copy = palloc_get_page (0);
+    strlcpy (token_copy, token, PGSIZE);
+    len = strlen (token_copy);
+    strlcpy (sp, token_copy, len+1);
     argv[argc] = sp;
-    align += len;
+    align += len+1;
     ++argc;
+    palloc_free_page (token_copy);
+    sp += len+1;
   }
-
-  align %= 4;
+  argv[argc] = NULL;
+  sp -= cmd_len+1;
+    
+  align = (4 - (align % 4)) % 4;
   if (align > 0)
     sp -= align;
+  uint8_t zero[4] = {0,};
+  memcpy (sp, zero, align);
 
-  sp -= sizeof (char *);
-  strlcpy (sp, NULL, sizeof (char *));
+  sp -= (argc+1) * sizeof (char *);
+  memcpy (sp, argv, (argc+1) * sizeof (char *));
 
-  int i = argc-1;
-  while (i>=0){
-    sp -= sizeof (char *);
-    strlcpy (sp, argv[i], sizeof (char *));
-    i--;
-  }
-
-  sp -= sizeof (int);
-  strlcpy (sp, argc, sizeof (int));
+  int start = sp;
   sp -= sizeof (void *);
-  strlcpy (sp, 0, sizeof (void *));
+  memcpy (sp, &start, sizeof (void *));
+  sp -= sizeof (int);
+  memcpy (sp, &argc, sizeof (int));
+  sp -= sizeof (void *);
 
   return sp;
 }
@@ -93,9 +92,12 @@ args_passing (void *sp, char *f_name)
 static void
 start_process (void *f_name)
 {
-  char *file_name, *save_ptr;
+  char *file_name, *save_ptr, *fn_copy;
   struct intr_frame if_;
   bool success;
+
+  fn_copy = palloc_get_page (0);
+  strlcpy (fn_copy, f_name, PGSIZE);
 
   file_name = strtok_r (f_name, " ", &save_ptr);
   /* Initialize interrupt frame and load executable. */
@@ -109,8 +111,10 @@ start_process (void *f_name)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
- 
-  if_.esp = args_passing (if_.esp, f_name); 
+
+  if_.esp = args_passing (if_.esp, fn_copy);
+  hex_dump ((int) if_.esp, if_.esp, 28, true);
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -482,7 +486,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
