@@ -31,6 +31,7 @@ process_execute (const char *file_name)
   char *fn_copy, *save_ptr, *fn;
   tid_t tid;
   
+  printf ("asdfasdfasdf\n");
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -111,8 +112,7 @@ start_process (void *f_name)
     thread_exit ();
 
   if_.esp = args_passing (if_.esp, fn_copy);
-  palloc_free_page (fn_copy);
-  
+  hex_dump ((int) if_.esp, if_.esp, 32, true);  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
