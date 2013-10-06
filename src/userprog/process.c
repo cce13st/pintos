@@ -90,24 +90,40 @@ args_passing (void *sp, char *f_name)
 static void
 start_process (void *f_name)
 {
-  char *file_name = f_name;
+  char *file_name = f_name, load_name[16], *fp;
   struct intr_frame if_;
   bool success;
+  int i = 0;
   printf ("start_process\n");
+
+  fp = file_name;
+  while (*fp != ' ' && *fp != 0){
+    fp++;
+    i++;
+  }
+
+  strlcpy (load_name, file_name, i+1);
+
+  load_name[i] = 0;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  printf ("%s %d\n", load_name, strlen(load_name));
+  printf ("%s %d\n", file_name, strlen(file_name));
+  success = load (load_name, &if_.eip, &if_.esp);
+  printf ("start_process\n");
 
   printf ("load complete\n");
   /* If load failed, quit. */
   if (!success) 
     thread_exit ();
 
+  printf ("start_process\n");
   if_.esp = args_passing (if_.esp, file_name);
+  printf ("start_process\n");
   hex_dump ((int) if_.esp, if_.esp, 40, true);  
   palloc_free_page (file_name); 
  
@@ -263,6 +279,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   printf ("load start\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
+  printf ("load2\n");
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -270,6 +287,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   printf ("%s\n", file_name);
   /* Open executable file. */
   file = filesys_open (file_name);
+  printf ("load3\n");
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);

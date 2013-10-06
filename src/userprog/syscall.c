@@ -59,4 +59,5 @@ syscall_write (struct intr_frame *f)
   memcpy (&size, f->esp+3, sizeof (unsigned));
   if (fd == 1)
     putbuf (buffer, size);
+  f->eax = size;
 }
