@@ -121,9 +121,7 @@ start_process (void *f_name)
   if (!success) 
     thread_exit ();
 
-  printf ("start_process\n");
   if_.esp = args_passing (if_.esp, file_name);
-  printf ("start_process\n");
   hex_dump ((int) if_.esp, if_.esp, 40, true);  
   palloc_free_page (file_name); 
  
@@ -293,6 +291,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  printf ("load3\n");
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
