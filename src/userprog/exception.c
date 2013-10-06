@@ -152,8 +152,8 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
-     sys_exit(-1);
+/*  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
+     sys_exit(-1);*/
 
 
   /* To implement virtual memory, delete the rest of the function
