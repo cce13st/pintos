@@ -31,6 +31,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  printf ("execute\n");
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -101,6 +102,7 @@ start_process (void *f_name)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  printf ("load complete\n");
   /* If load failed, quit. */
   if (!success) 
     thread_exit ();
@@ -258,12 +260,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  printf ("load start\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
+  printf ("%s\n", file_name);
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
