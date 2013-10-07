@@ -19,8 +19,6 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   int syscall_n = *(int *)(f->esp);
-  printf ("syscall - %d\n", syscall_n);
-  hex_dump ((int) f->esp, f->esp, 128, true);
     
   /*  Switch-case for system call number */
   switch (syscall_n){
@@ -42,7 +40,7 @@ syscall_halt (struct intr_frame *f)
 static void
 syscall_exit (struct intr_frame *f)
 {
-  int status = *(int *)(f->esp + 1);
+  int status = *(int *)(f->esp + 4);
   printf ("%s: exit(%d)\n", thread_name (), status);
   f->eax = status;
   thread_exit ();
@@ -51,12 +49,11 @@ syscall_exit (struct intr_frame *f)
 static void
 syscall_write (struct intr_frame *f)
 {
-  int fd;
+  int fd = *(int *)(f->esp + 4);
   void *buffer;
+  memcpy (&buffer, f->esp+8, sizeof (unsigned));
   unsigned size;
-  memcpy (&fd, f->esp+1, sizeof (int));
-  memcpy (&buffer, f->esp+2, sizeof (void *));
-  memcpy (&size, f->esp+3, sizeof (unsigned));
+  memcpy (&size, f->esp+12, sizeof (unsigned));
   if (fd == 1)
     putbuf (buffer, size);
   f->eax = size;
