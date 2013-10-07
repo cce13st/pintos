@@ -6,7 +6,6 @@
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_exit (struct intr_frame *);
-static void syscall_halt (struct intr_frame *);
 static void syscall_write (struct intr_frame *);
 
 void
@@ -22,19 +21,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     
   /*  Switch-case for system call number */
   switch (syscall_n){
-    case SYS_HALT:
-      syscall_halt (f);
     case SYS_EXIT:
       syscall_exit (f);
     case SYS_WRITE:  
       syscall_write (f);
   }
-}
-
-static void
-syscall_halt (struct intr_frame *f)
-{
-  power_off ();
 }
 
 static void
