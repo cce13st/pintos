@@ -97,8 +97,15 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+    int original_priority;
+
+    struct list lock_list;
+    struct lock *blocked_lock;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+
   };
 
 /* If false (default), use round-robin scheduler.
