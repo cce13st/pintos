@@ -28,7 +28,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy, *fp, *t_name;
+  char *fn_copy, *fp, t_name[16];
   tid_t tid;
   int i = 0;
 
@@ -38,7 +38,7 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
+ 
   fp = fn_copy;
   while (*fp != ' ' && *fp != 0){
     fp++;
@@ -50,6 +50,7 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (t_name, PRI_DEFAULT, start_process, fn_copy);
+  sema_down (&thread_current ()->load_wait); 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -111,7 +112,6 @@ start_process (void *f_name)
   }
 
   strlcpy (load_name, file_name, i+1);
-
   load_name[i] = 0;
 
   /* Initialize interrupt frame and load executable. */
@@ -120,6 +120,7 @@ start_process (void *f_name)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (load_name, &if_.eip, &if_.esp);
+  sema_up (&thread_current ()->parent->load_wait);
 
   /* If load failed, quit. */
   if (!success) 
@@ -127,7 +128,7 @@ start_process (void *f_name)
 
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
- 
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -148,9 +149,32 @@ start_process (void *f_name)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  return -1;
+  bool find_success = false;
+  struct thread_info *ip;
+  struct list_elem *ittr;
+
+  if (&thread_current ()->childs == NULL) return -1;
+
+  for (ittr = list_begin (&thread_current ()->childs);
+       ittr != list_end (&thread_current ()->childs);
+       ittr = list_next (ittr))
+  {
+    ip = list_entry (ittr, struct thread_info, info_elem);
+    if (ip->tid == child_tid){
+      find_success = true;
+      break;
+    }
+  }
+  if (!find_success) return -1;
+  if (ip->waited) return -1;
+  if (!ip->exit && ip->tp == NULL) return -1;
+ 
+  ip->waited = true;
+  list_remove (ittr);  
+  sema_down (&ip->tp->p_wait);
+  return ip->exit_status;
 }
 
 /* Free the current process's resources. */
@@ -159,7 +183,7 @@ process_exit (void)
 {
   struct thread *curr = thread_current ();
   uint32_t *pd;
-
+  sema_up (&curr->p_wait);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = curr->pagedir;
