@@ -196,8 +196,19 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
 
+  /* Make parent-child relation */
+  t->parent = thread_current ();
+  struct thread_info *ip = (struct thread_info *) malloc(sizeof(struct thread_info));
+  ip->tid = t->tid;
+  ip->exit = false;
+  ip->waited = false;
+  ip->tp = t;
+  t->ip = ip;
+  list_push_back (&thread_current ()->childs, &ip->info_elem);
+  
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield ();
 
   return tid;
 }
@@ -237,9 +248,9 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  //if (thread_current () != idle_thread && thread_current ()->priority < t->priority)
+  //  thread_yield ();
   intr_set_level (old_level);
-
-  thread_yield ();
 }
 
 /* Returns the name of the running thread. */
@@ -440,6 +451,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  list_init (&t->childs);
+  sema_init (&t->p_wait, 0);
+  sema_init (&t->load_wait, 0);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
