@@ -204,6 +204,7 @@ thread_create (const char *name, int priority,
   ip->waited = false;
   ip->tp = t;
   t->ip = ip;
+  t->load_fail = false;
   list_push_back (&thread_current ()->childs, &ip->info_elem);
   
   /* Add to run queue. */

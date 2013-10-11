@@ -53,6 +53,10 @@ process_execute (const char *file_name)
   sema_down (&thread_current ()->load_wait); 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  if (thread_current ()->load_fail){
+    thread_current ()->load_fail = true;
+    tid = -1;
+  }
   return tid;
 }
 
@@ -121,12 +125,13 @@ start_process (void *f_name)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (load_name, &if_.eip, &if_.esp);
   sema_up (&thread_current ()->parent->load_wait);
-
+  
   /* If load failed, quit. */
   if (!success){
-	  palloc_free_page (file_name);
+    thread_current ()->parent->load_fail = true;
+    palloc_free_page (file_name);
     thread_exit ();
-	}
+  }
 
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 

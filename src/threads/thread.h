@@ -110,6 +110,9 @@ struct thread
     struct list childs;
     struct thread_info *ip;		/* Pointer for thread_info */
 
+    /* For successful execute */
+    bool load_fail;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
