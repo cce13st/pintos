@@ -19,7 +19,7 @@ static void syscall_seek (struct intr_frame *);
 static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
-
+struct file_info * find_by_fd(int);
 
 struct lock *file_lock;
 
@@ -35,7 +35,7 @@ validate_fd (int fd)
 {
 	if (fd < 0 || fd > 127) return false;
 	if (fd > thread_current ()->cur_fd) return false;
-	if (fd != 0 && fd!= 1 && thread_current ()->fd_table[fd] == NULL) return false;
+	if (fd != 0 && fd!= 1 && find_by_fd(fd) == NULL) return false;
 	return true;
 }
 
@@ -168,7 +168,7 @@ syscall_write (struct intr_frame *f)
 		f->eax = size;
 	} else {
 		struct file *target_file;
-		target_file = t->fd_table[fd];
+		target_file = find_by_fd (fd)->f;
 
 		if(!target_file)
 			f->eax = -1;
@@ -219,16 +219,19 @@ syscall_open (struct intr_frame *f)
 
 	struct thread *t;
 	struct file *target_file;
+	struct file_info *fip;
 	t = thread_current();
 	target_file = filesys_open(file);
-
+	
 	if (target_file == NULL){
 		f->eax = -1;
 		return;
 	}
-	
-	f->eax = t->cur_fd;
-	t->fd_table[t->cur_fd++] = target_file;
+	fip = malloc (sizeof (struct file_info));
+	fip->fd = t->cur_fd; 
+	fip->f = target_file;
+	list_push_back (&t->fd_table, &fip->elem);
+	f->eax = t->cur_fd++;
 }
 
 static void
@@ -241,7 +244,7 @@ syscall_filesize (struct intr_frame *f)
 	struct file *target_file;
 
 	t = thread_current();
-	target_file = t->fd_table[fd];
+	target_file = find_by_fd(fd)->f;
 	if (!target_file)
 		f->eax = -1;
 	else
@@ -277,7 +280,7 @@ syscall_read (struct intr_frame *f) {
 	}
 	else {
 		struct file *target_file;
-		target_file = t->fd_table[fd];
+		target_file = find_by_fd(fd)->f;
 		if (!target_file)
 			f->eax = -1;
 		else
@@ -297,7 +300,7 @@ syscall_seek (struct intr_frame *f)
 	struct thread *t;
 	struct file *target_file;
 	t = thread_current();
-	target_file = t->fd_table[fd];
+	target_file = find_by_fd(fd)->f;
 
 	if (target_file)
 		file_seek(target_file, position);
@@ -312,7 +315,7 @@ syscall_tell (struct intr_frame *f)
 	struct thread *t;
 	struct file *target_file;
 	t = thread_current();
-	target_file = t->fd_table[fd];
+	target_file = find_by_fd(fd)->f;
 	if (!target_file)
 		f->eax = -1;
 	else
@@ -330,9 +333,31 @@ syscall_close(struct intr_frame *f) {
 	
 	struct thread *t;
 	struct file *target_file;
+	struct file_info *fip;
 	t = thread_current();
-	target_file = t->fd_table[fd];
+	fip = find_by_fd(fd);
+	target_file = fip->f;
+	list_remove (&fip->elem);
 	file_close(target_file);
-	t->fd_table[fd] = NULL;
-	// free fd_table
+	free(fip);
+}
+
+struct file_info*
+find_by_fd (int fd)
+{
+  struct thread *t = thread_current ();
+  struct file_info *fip;
+  struct list_elem *ittr;
+
+  ittr = list_begin (&t->fd_table);
+	while (ittr != list_end (&t->fd_table))
+	{
+	  fip = list_entry (ittr, struct file_info, elem);
+		if (fip->fd == fd)
+		  return fip;
+	  
+		ittr = list_next (ittr);
+	}
+
+	return NULL;
 }

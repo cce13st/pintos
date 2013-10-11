@@ -101,7 +101,8 @@ struct thread
 
 		/* For fd_table - syscall file */
 		int cur_fd;
-		struct file *fd_table[128];
+		struct list fd_table;
+		struct file *self;
 
     /* For Parent-Child relation */
     struct semaphore p_wait;
@@ -127,6 +128,12 @@ struct thread_info
     bool waited;			/* Check this thread is waited by parent */
   };
     
+struct file_info
+  {
+	  int fd;
+		struct file *f;
+		struct list_elem elem;
+	};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

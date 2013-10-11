@@ -44,7 +44,6 @@ process_execute (const char *file_name)
     fp++;
     i++;
   }
-
   strlcpy (t_name, fn_copy, i+1);
   t_name[i] = 0;
 
@@ -64,7 +63,7 @@ static void *
 args_passing (void *sp, char *f_name)
 {
   char *token, *save_ptr;
-  void *argv[50];
+  void *argv[30];
   int argc = 0, align = 0, len, cmd_len;
 
   cmd_len = strlen(f_name);
@@ -133,9 +132,10 @@ start_process (void *f_name)
     thread_exit ();
   }
 
+	thread_current ()->self = filesys_open (load_name);
+  file_deny_write (thread_current ()->self);
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
-  
 	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -158,10 +158,10 @@ start_process (void *f_name)
 int
 process_wait (tid_t child_tid) 
 {
+  int status;
   bool find_success = false;
   struct thread_info *ip;
   struct list_elem *ittr;
-
   if (&thread_current ()->childs == NULL) return -1;
 
   for (ittr = list_begin (&thread_current ()->childs);
@@ -177,11 +177,13 @@ process_wait (tid_t child_tid)
   if (!find_success) return -1;
   if (ip->waited) return -1;
   if (!ip->exit && ip->tp == NULL) return -1;
- 
+
+  sema_down (&ip->tp->p_wait);
   ip->waited = true;
   list_remove (ittr);  
-  sema_down (&ip->tp->p_wait);
-  return ip->exit_status;
+	status = ip->exit_status;
+	free (ip);
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -189,10 +191,19 @@ void
 process_exit (void)
 {
   struct thread *curr = thread_current ();
+  struct file_info *fip;
+  struct list_elem *ittr;
   uint32_t *pd;
-  sema_up (&curr->p_wait);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+
+  while (list_size (&curr->fd_table) > 0)
+	{
+	  ittr = list_pop_front (&curr->fd_table);
+		fip = list_entry (ittr, struct file_info, elem);
+		file_close (fip->f);
+		free (fip);
+  }
   pd = curr->pagedir;
   if (pd != NULL) 
     {
@@ -207,6 +218,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+	file_close (curr->self);
+	curr->self = NULL;
+  sema_up (&curr->p_wait);
 }
 
 /* Sets up the CPU for running user code in the current
