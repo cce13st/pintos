@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "threads/synch.h"
 
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -97,6 +98,10 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
+
+		/* For fd_table - syscall file */
+		int cur_fd;
+		struct file *fd_table[128];
 
     /* For Parent-Child relation */
     struct semaphore p_wait;
