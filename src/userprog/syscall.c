@@ -26,14 +26,19 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch (syscall_n){
     case SYS_HALT:
       syscall_halt (f);
+      break;
     case SYS_EXIT:
       syscall_exit (f);
+      break;
     case SYS_EXEC:
       syscall_exec (f);
+      break;
     case SYS_WAIT:
       syscall_wait (f);
+      break;
     case SYS_WRITE:  
       syscall_write (f);
+      break;
   }
 }
 
