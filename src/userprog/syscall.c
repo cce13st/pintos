@@ -7,7 +7,6 @@
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt (struct intr_frame *);
-static void syscall_exit (int);
 static void syscall_exec (struct intr_frame *);
 static void syscall_wait (struct intr_frame *);
 static void syscall_write (struct intr_frame *);
@@ -21,17 +20,22 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 
+
+struct lock *file_lock;
+
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+	lock_init(&file_lock);
 }
 
 bool
 validate_fd (int fd)
 {
-  if (fd > thread_current ()->cur_fd)
-	  return false;
+	if (fd < 0 || fd > 127) return false;
+	if (fd > thread_current ()->cur_fd) return false;
+	if (fd != 0 && fd!= 1 && thread_current ()->fd_table[fd] == NULL) return false;
 	return true;
 }
 
@@ -101,7 +105,7 @@ syscall_halt(struct intr_frame *f)
 	power_off();
 }
 
-static void
+void
 syscall_exit (int status)
 {
   if (status < 0)
@@ -148,7 +152,12 @@ syscall_write (struct intr_frame *f)
   memcpy (&fd, f->esp+4, sizeof (int));
   memcpy (&buffer, f->esp+8, sizeof (void *));
   memcpy (&size, f->esp+12, sizeof (unsigned));
-
+	if (!validate_address (buffer))
+	  syscall_exit (-1);
+	if (! validate_fd (fd)){
+	  f->eax = -1;
+  	return;
+	}
 	struct thread *t;
 	t = thread_current();
 
@@ -158,7 +167,6 @@ syscall_write (struct intr_frame *f)
 		putbuf(buffer,size);
 		f->eax = size;
 	} else {
-		
 		struct file *target_file;
 		target_file = t->fd_table[fd];
 
@@ -176,12 +184,14 @@ syscall_create (struct intr_frame *f)
 	unsigned initial_size;
 	memcpy (&file, f->esp+4, sizeof (char *));
 	memcpy (&initial_size, f->esp+8, sizeof (unsigned));
+	if (!validate_address (file))
+	  syscall_exit (-1);
 	
   if (file == NULL){
-    printf ("%s: exit(%d)\n", thread_name (), -1);
-    thread_exit ();
+	  syscall_exit (-1);
 		f->eax = false;
-  } else
+  }
+	else
 		f->eax = filesys_create(file, initial_size);
 }
 
@@ -203,6 +213,9 @@ syscall_open (struct intr_frame *f)
 {
 	const char *file;
 	memcpy (&file, f->esp+4, sizeof (char *));
+
+  if (!validate_address (file))
+	  syscall_exit (-1);
 
 	struct thread *t;
 	struct file *target_file;
@@ -244,6 +257,12 @@ syscall_read (struct intr_frame *f) {
 	memcpy (&buffer, f->esp+8, sizeof(void *));
 	memcpy (&size, f->esp+12, sizeof(unsigned));
 
+  if (!validate_address (buffer) || buffer == NULL)
+	  syscall_exit (-1);
+	if (!validate_fd (fd)){
+	  f->eax = -1;
+		return;
+  }
 	struct thread *t;
 	int i;
 	t = thread_current();
@@ -252,9 +271,11 @@ syscall_read (struct intr_frame *f) {
 		for (i=0; i<size; i++) {
 			*(char *)(buffer + i) = (char)input_getc();
 		}
-	} else if (fd ==1) {
+	}
+	else if (fd ==1) {
 		f->eax = -1;
-	} else {
+	}
+	else {
 		struct file *target_file;
 		target_file = t->fd_table[fd];
 		if (!target_file)
@@ -304,6 +325,9 @@ syscall_close(struct intr_frame *f) {
 	int fd;
 	memcpy(&fd, f->esp+4, sizeof(int));
 
+  if (!validate_fd (fd))
+	  syscall_exit (-1);
+	
 	struct thread *t;
 	struct file *target_file;
 	t = thread_current();

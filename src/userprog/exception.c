@@ -4,6 +4,8 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "userprog/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -152,9 +154,12 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-/*  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
-     sys_exit(-1);*/
-
+  if ((is_kernel_vaddr(fault_addr) && user) || not_present){
+    //thread_current ()->ip->exit_status = -1;
+		//printf ("%s: exit(%d)\n",thread_name (), -1);
+		//thread_exit ();
+		syscall_exit (-1);
+	}
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

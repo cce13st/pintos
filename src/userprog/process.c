@@ -123,13 +123,15 @@ start_process (void *f_name)
   sema_up (&thread_current ()->parent->load_wait);
 
   /* If load failed, quit. */
-  if (!success) 
+  if (!success){
+	  palloc_free_page (file_name);
     thread_exit ();
+	}
 
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
-
-  /* Start the user process by simulating a return from an
+  
+	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
      arguments on the stack in the form of a `struct intr_frame',
