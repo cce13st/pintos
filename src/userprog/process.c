@@ -123,16 +123,17 @@ start_process (void *f_name)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (load_name, &if_.eip, &if_.esp);
-  sema_up (&thread_current ()->parent->load_wait);
   
   /* If load failed, quit. */
   if (!success){
     thread_current ()->parent->load_fail = true;
+    sema_up (&thread_current ()->parent->load_wait);
     palloc_free_page (file_name);
     thread_exit ();
   }
 
-	thread_current ()->self = filesys_open (load_name);
+  sema_up (&thread_current ()->parent->load_wait);
+  thread_current ()->self = filesys_open (load_name);
   file_deny_write (thread_current ()->self);
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
@@ -545,7 +546,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE-12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
