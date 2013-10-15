@@ -178,7 +178,8 @@ process_wait (tid_t child_tid)
   if (ip->waited) return -1;
   if (!ip->exit && ip->tp == NULL) return -1;
 
-  sema_down (&ip->tp->p_wait);
+  if (!ip->exit)
+    sema_down (&ip->tp->p_wait);
   ip->waited = true;
   list_remove (ittr);  
 	status = ip->exit_status;
