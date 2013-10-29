@@ -13,8 +13,8 @@ struct frame_entry
 	uint8_t *upage;
 	uint8_t *kpage;
 	struct thread *t;
-	struct hash_elem hash_elem;
+	struct list_elem list_elem;
 };
 
-struct hash frame_hash;
+struct list frame_list;
 struct lock frame_lock;

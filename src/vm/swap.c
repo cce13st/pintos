@@ -9,33 +9,32 @@ void swap_init ()
 	lock_init (&swap_lock);
 }
 
-void swap_out (uint8_t *upage, uint8_t *kpage)
+/* swap out page from frame to disk */
+void swap_out (uint8_t *kpage)
 {
 	lock_acquire (&swap_lock);
-
 	int i;
 	uint8_t dst, *src;
 	
 	dst = (disk_sector_t) bitmap_scan_and_flip (frame_alloc, 0, 1, false);
 	if (dst == BITMAP_ERROR)
-		PANIC();
-
+		PANIC("Swap disk full");
 
 	for (i=0; i<8; i++) 
 		disk_write (swap_disk, dst*8 + i, src+512*i);
 	bitmap_set (frame_alloc, dst, true);
 
-	frame_remove ();
+	frame_remove (src);
 	spte->swapped = true;
 	spte->swap_idx = dst*8;
 
 	lock_release (&swap_lock);
 }
 
-void swap_in (uint8_t *upage, uint8_t *kpage)
+/* swap in page from disk to frame */
+void swap_in (uint8_t *kpage)
 {
 	lock_acquire (&swap_lock);
-	
 	int i;
 	disk_sector_t src;
 	uint8_t *dst;
@@ -49,7 +48,7 @@ void swap_in (uint8_t *upage, uint8_t *kpage)
 		disk_read (swap_disk, dst*8 + i , src+ i*512);
 	bitmap_set (frame_alloc, src, false);
 
-	frame_insert();
+	frame_insert(spte->upage, kpage);
 	spte->swapped = false;
 	spte->kpage = src;
 
