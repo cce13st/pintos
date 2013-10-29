@@ -163,7 +163,15 @@ page_fault (struct intr_frame *f)
 		// 
 		// Swap it.
 		// Allocate new frame to it.
+  if ((is_kernel_vaddr(fault_addr) && user)){
+		syscall_exit (-1);
 	}
+	
+	//From projecf 3 
+	
+
+
+
 
   if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 		syscall_exit (-1);
