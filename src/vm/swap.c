@@ -25,7 +25,13 @@ void swap_out (uint8_t *upage, uint8_t *kpage)
 		disk_write (swap_disk, dst*8 + i, src+512*i);
 	bitmap_set (frame_alloc, dst, true);
 
+<<<<<<< HEAD
 	/* Empty frame free*/
+=======
+	frame_remove ();
+	spte->swapped = true;
+	spte->swap_idx = dst*8;
+>>>>>>> a_pj31
 
 	lock_release (&swap_lock);
 }
@@ -39,6 +45,7 @@ void swap_in (uint8_t *upage, uint8_t *kpage)
 	uint8_t *dst;
 
 	/* Find swap slot containing upage */
+<<<<<<< HEAD
 	src = asdf;
 
 	/* Find swap */ 
@@ -47,4 +54,16 @@ void swap_in (uint8_t *upage, uint8_t *kpage)
 	bitmap_set (frame_alloc, src, false);
 
 	lock_acquire(&swap_lock);
+=======
+	spte = spt_find_upage (upage);
+	src = spte->swp_idx;
+
+	/* Find swap */
+	disk_read (swap_disk, dst, src);
+	bitmap_set (frame_alloc, src, false);
+
+	frame_insert();
+	spte->swapped = false;
+	spte->kpage = src;
+>>>>>>> a_pj31
 }
