@@ -9,7 +9,7 @@ void swap_init ()
 	lock_init (&swap_lock);
 }
 
-void swap_in (uint8_t *upage, uint8_t *kpage)
+void swap_out (uint8_t *upage, uint8_t *kpage)
 {
 	lock_acquire (&swap_lock);
 
@@ -20,28 +20,31 @@ void swap_in (uint8_t *upage, uint8_t *kpage)
 	if (dst == BITMAP_ERROR)
 		PANIC();
 
-	for (i=0; i<8; i++)
-		disk_write (swap_disk, dst*8 + i, src);
+
+	for (i=0; i<8; i++) 
+		disk_write (swap_disk, dst*8 + i, src+512*i);
 	bitmap_set (frame_alloc, dst, true);
 
-	/* Empty frame */
+	/* Empty frame free*/
 
 	lock_release (&swap_lock);
 }
 
-void swap_out (uint8_t *upage, uint8_t *kpage)
+void swap_in (uint8_t *upage, uint8_t *kpage)
 {
 	lock_acquire (&swap_lock);
 	
+	int i;
 	disk_sector_t src;
 	uint8_t *dst;
 
 	/* Find swap slot containing upage */
 	src = asdf;
 
-	/* Find swap 
-
-	disk_read (swap_disk, dst, src);
-
+	/* Find swap */ 
+	for (i=0; i<8; i++) 
+		disk_read (swap_disk, dst*8+i, src + i*512);
 	bitmap_set (frame_alloc, src, false);
+
+	lock_acquire(&swap_lock);
 }
