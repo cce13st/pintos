@@ -35,6 +35,8 @@
 #include "filesys/fsutil.h"
 #endif
 
+#include "vm/frame.h"
+
 /* Amount of physical memory, in 4 kB pages. */
 size_t ram_pages;
 
@@ -104,6 +106,8 @@ main (void)
   syscall_init ();
 #endif
 
+	frame_init ();
+
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
   serial_init_queue ();
@@ -159,6 +163,7 @@ paging_init (void)
   size_t page;
   extern char _start, _end_kernel_text;
 
+	//TODO: should treat frame table in this paging
   pd = base_page_dir = palloc_get_page (PAL_ASSERT | PAL_ZERO);
   pt = NULL;
   for (page = 0; page < ram_pages; page++) 

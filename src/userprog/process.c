@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -524,6 +525,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
+			/* When install_page successes, add entry into frame table */
+			frame_insert (upage, kpage, thread_current ());
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -546,7 +549,12 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+			{
         *esp = PHYS_BASE;
+				
+				/* If getting page successes, frame table allocate */
+				frame_insert (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, thread_current ());
+			}
       else
         palloc_free_page (kpage);
     }
