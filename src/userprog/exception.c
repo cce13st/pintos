@@ -154,12 +154,15 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-  if ((is_kernel_vaddr(fault_addr) && user) || not_present){
-    //thread_current ()->ip->exit_status = -1;
-		//printf ("%s: exit(%d)\n",thread_name (), -1);
-		//thread_exit ();
+  if ((is_kernel_vaddr(fault_addr) && user)){
 		syscall_exit (-1);
 	}
+	
+	//From projecf 3 
+	
+
+
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
