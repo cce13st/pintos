@@ -28,17 +28,20 @@ void frame_init ()
  * 	t : current thread */
 void frame_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
 {
+	lock_acquire (&frame_lock);
 	struct frame_entry *fte = (struct frame_entry *)malloc (sizeof (struct frame_entry));
 	fte->upage = upage;
 	fte->kpage = kpage;
 	fte->t = t;
-
+	
 	hash_insert (&frame_hash, &fte->hash_elem);
+	lock_release (&frame_lock);
 }
 
 /* Remove entry from frame table */
 void frame_remove (uint8_t *kpage)
 {
+	lock_acquire (&frame_lock);
 	struct frame_entry *fte, *aux;
 	struct hash_elem *target;
 
@@ -50,10 +53,15 @@ void frame_remove (uint8_t *kpage)
 	hash_delete (&frame_hash, &fte->hash_elem);
 	free (fte);
 	free (aux);
+	lock_release (&frame_lock);
 }
 
 void eviction ()
 {
-	/* Calculate LRU */
-
+	/* Find victim */
+	struct frame_entry *victim = find_victim ();
+	// Swap Out
+	// Free this entry
+	hash_delete (&frame_hash, *fte->hash_elem);
+	free (victim);
 }

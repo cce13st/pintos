@@ -1,5 +1,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 #include <hash.h>
 
 void frame_init (void);
@@ -17,4 +18,3 @@ struct frame_entry
 
 struct hash frame_hash;
 struct lock frame_lock;
-
