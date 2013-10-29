@@ -128,6 +128,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+	struct thread *t;	 /* Current thread */
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -136,6 +137,7 @@ page_fault (struct intr_frame *f)
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
+	t = thread_current ();
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
   /* Turn interrupts back on (they were only off so that we could
@@ -154,12 +156,17 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-  if ((is_kernel_vaddr(fault_addr) && user) || not_present){
-    //thread_current ()->ip->exit_status = -1;
-		//printf ("%s: exit(%d)\n",thread_name (), -1);
-		//thread_exit ();
-		syscall_exit (-1);
+
+	if (not_present)
+	{
+		// Find fault_addr from SPT s.t. fault_addr_page and t
+		// 
+		// Swap it.
+		// Allocate new frame to it.
 	}
+
+  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
+		syscall_exit (-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

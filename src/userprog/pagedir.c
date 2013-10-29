@@ -45,6 +45,8 @@ pagedir_destroy (uint32_t *pd)
         palloc_free_page (pt);
       }
   palloc_free_page (pd);
+
+	/* TODO Also remove frame allocation */
 }
 
 /* Returns the address of the page table entry for virtual

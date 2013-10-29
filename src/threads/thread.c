@@ -177,6 +177,7 @@ thread_create (const char *name, int priority,
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
+	/* TODO: allocate frame */
 
   /* Initialize thread. */
   init_thread (t, name, priority);
@@ -529,6 +530,7 @@ schedule_tail (struct thread *prev)
     {
       ASSERT (prev != curr);
       palloc_free_page (prev);
+			/* TODO: deallocate frame */
     }
 }
 
