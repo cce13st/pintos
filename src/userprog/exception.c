@@ -1,6 +1,7 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
+#include "vm/frame.h"
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -160,18 +161,9 @@ page_fault (struct intr_frame *f)
 	if (not_present)
 	{
 		// Find fault_addr from SPT s.t. fault_addr_page and t
-		// 
-		// Swap it.
-		// Allocate new frame to it.
-  if ((is_kernel_vaddr(fault_addr) && user)){
-		syscall_exit (-1);
+		struct spt_entry *spte = spt_find_kpage (vtop (fault_addr));
+		//uint8_t kpage = frame_get ();
 	}
-	
-	//From projecf 3 
-	
-
-
-
 
   if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 		syscall_exit (-1);

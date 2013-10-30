@@ -1,24 +1,16 @@
 #include "frame.h"
+#include <bitmap.h>
+#include "threads/vaddr.h"
 
-unsigned page_val (const struct hash_elem *e, void *aux UNUSED)
-{
-	struct frame_entry *fte = hash_entry (e, struct frame_entry, hash_elem);
-	return fte->kpage;
-}
-
-bool page_cmp (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
-{
-	struct frame_entry *fte1 = hash_entry (a, struct frame_entry, hash_elem);
-	struct frame_entry *fte2 = hash_entry (b, struct frame_entry, hash_elem);
-	
-	return fte1->kpage < fte2->kpage;
-}
+uint8_t eviction ();
+struct frame_entry *find_victim ();
 
 /* Initialize Frame Table */
 void frame_init ()
 {
+	frame_alloc = bitmap_create (1000);
 	lock_init (&frame_lock);
-	hash_init (&frame_hash, &page_val, &page_cmp, NULL);
+	list_init (&frame_list);
 }
 
 /* Insert frame table entry
@@ -34,7 +26,8 @@ void frame_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 	
-	hash_insert (&frame_hash, &fte->hash_elem);
+	bitmap_set (frame_alloc, (int)kpage/PGSIZE, true);
+	list_insert (&frame_list, &fte->list_elem);
 	lock_release (&frame_lock);
 }
 
@@ -42,26 +35,52 @@ void frame_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
 void frame_remove (uint8_t *kpage)
 {
 	lock_acquire (&frame_lock);
-	struct frame_entry *fte, *aux;
-	struct hash_elem *target;
+	struct frame_entry *aux;
+	struct list_elem *target;
 
-	aux = (struct frame_entry *)malloc (sizeof (struct frame_entry));
-	aux->kpage = kpage;
-	target = hash_find (&frame_hash, aux);
-	fte = hash_entry (target, struct frame_entry, hash_elem);
+	for (target = list_front (&frame_list); target != list_end (&frame_list); target = list_next (&target))
+	{
+		aux = list_entry (target, struct frame_entry, list_elem);
+		if (aux->kpage == kpage)
+		{
+			bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
+			list_remove (&aux->list_elem);
+			free (aux);
+			break;
+		}
+	}
 
-	hash_delete (&frame_hash, &fte->hash_elem);
-	free (fte);
-	free (aux);
 	lock_release (&frame_lock);
 }
 
-void eviction ()
+/* Find free frame */
+uint8_t frame_get ()
 {
-	/* Find victim */
-	struct frame_entry *victim = find_victim ();
-	// Swap Out
-	// Free this entry
-	hash_delete (&frame_hash, *fte->hash_elem);
-	free (victim);
+	uint8_t kpage;
+	kpage = (uint8_t) bitmap_scan_and_flip (frame_alloc, 0, 1, false);
+	if (kpage == BITMAP_ERROR)
+		kpage = eviction();
+	else
+		kpage << 12;
+
+	return kpage;
+}
+
+uint8_t eviction ()
+{
+	struct frame_entry *fte = find_victim ();
+	uint8_t empty_page = fte->kpage;
+	//swap_out (empty_page);
+
+	return empty_page;
+}
+
+struct frame_entry *
+find_victim ()
+{
+	struct frame_entry *victim;
+	
+	victim = list_entry (list_begin (&frame_list), struct frame_entry, list_elem);
+	
+	return victim;
 }

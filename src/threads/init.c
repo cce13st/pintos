@@ -20,6 +20,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "vm/frame.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -34,8 +35,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-#include "vm/frame.h"
-
 
 /* Amount of physical memory, in 4 kB pages. */
 size_t ram_pages;
@@ -90,7 +89,10 @@ main (void)
   malloc_init ();
   paging_init ();
 
-  /* Segmentation. */
+	/* Initialize frame table */
+	frame_init ();
+  
+	/* Segmentation. */
 #ifdef USERPROG
   tss_init ();
   gdt_init ();
@@ -105,8 +107,6 @@ main (void)
   exception_init ();
   syscall_init ();
 #endif
-
-	frame_init ();
 
   /* Start thread scheduler and enable interrupts. */
   thread_start ();

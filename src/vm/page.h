@@ -1,7 +1,11 @@
-#ifndef SPAGE_H_
-#include "threads/vaddr.h"
 #include "threads/synch.h"
-#include <hash.h>
+#include "vm/frame.h"
+#include "lib/kernel/hash.h"
+
+void spt_init (void);
+void spt_insert (uint8_t *, uint8_t *, struct thread *);
+void spt_remove (uint8_t *);
+struct spt_entry *spt_find_kpage (uint8_t *);
 
 struct spt_entry
 {
@@ -10,16 +14,10 @@ struct spt_entry
 	uint8_t *upage;
 	uint8_t swap_idx;
 	uint8_t *kpage;
+	struct thread *t;
 
 	struct hash_elem hash_elem;
 };
 
-struct lock spage_lock;
-struct hash spage_hash;
-
-void spage_init (void);
-void spage_insert ();
-void spage_remove ();
-
-
-#endif /* vm/page.h end */
+struct lock spt_lock;
+struct hash spt_hash;

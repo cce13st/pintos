@@ -1,6 +1,6 @@
 #include "devices/disk.h"
+#include "vm/page.h"
 #include "threads/synch.h"
-#include "vm/frame.h"
 
 void swap_init (void);
 void swap_in ();
