@@ -1,13 +1,10 @@
-#ifndef FRAME_H_
 #include "threads/thread.h"
-#include "threads/vaddr.h"
 #include "threads/synch.h"
-#include <hash.h>
 
 void frame_init (void);
 void frame_insert (uint8_t *, uint8_t *, struct thread *);
 void frame_remove (uint8_t *);
-void eviction (void);
+uint8_t frame_get (void);
 
 struct frame_entry
 {
@@ -19,5 +16,4 @@ struct frame_entry
 
 struct list frame_list;
 struct lock frame_lock;
-
-#endif /* vm/frame.h end */
+struct bitmap *frame_alloc;

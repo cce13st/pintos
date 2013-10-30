@@ -17,7 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -567,7 +567,7 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-	bool result 
+	bool result;
   
 	/* Verify that there's not already a page at that virtual
      address, then map our page there. */
@@ -575,6 +575,7 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 
 	if (result)
-		frame_insert (upage, kpage, thread_current ());
+		//spt_insert (upage, kpage, thread_current ());
+	return result;
 	return result;
 }
