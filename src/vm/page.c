@@ -3,7 +3,7 @@
 unsigned page_val (const struct hash_elem *e, void *aux UNUSED)
 {
 	struct frame_entry *fte = hash_entry (e, struct frame_entry, hash_elem);
-	return fte->upage;
+	return fte->kpage;
 }
 
 bool page_cmp (const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED)
@@ -11,7 +11,7 @@ bool page_cmp (const struct hash_elem *a, const struct hash_elem *b, void *aux U
 	struct frame_entry *fte1 = hash_entry (a, struct frame_entry, hash_elem);
 	struct frame_entry *fte2 = hash_entry (b, struct frame_entry, hash_elem);
 	
-	return fte1->upage < fte2->upage;
+	return fte1->kpage < fte2->kpage;
 }
 
 static struct spt_entry
@@ -45,10 +45,10 @@ void spt_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
 }	
 
 /* Remove supplement page table entry */
-void spt_remove (uint8_t *upage, uint8_t *kpage, struct thread *t)
+void spt_remove (uint8_t *kpage)
 {
 	lock_acquire (&spage_lock);
-	struct spt_entry *spte = spt_find_upage (upage);
+	struct spt_entry *spte = spt_find_upage (kpage);
 	hash_remove (&spt_hash, &spte->hash_elem);
 	free (spte);
 	lock_release (&spage_lock);
@@ -56,12 +56,12 @@ void spt_remove (uint8_t *upage, uint8_t *kpage, struct thread *t)
 
 /* Find the spt_entry */
 struct spt_entry 
-*spt_find_upage (uint8_t *upage)
+*spt_find_upage (uint8_t *kpage)
 {
 	lock_acquire (&spage_lock);
 	struct spt_entry *spte, *aux;
 	aux = (struct spt_entry *)malloc (sizeof (struct spt_entry));
-	aux->upage = upage;
+	aux->kpage = kpage;
 	target = hash_find (&spt_hash, aux);
 	spte = hash_entry (target, struct spt_entry, hash_elem);
  	return spte;
