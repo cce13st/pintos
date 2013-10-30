@@ -157,14 +157,14 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-
+/*
 	if (not_present)
 	{
 		// Find fault_addr from SPT s.t. fault_addr_page and t
 		struct spt_entry *spte = spt_find_kpage (vtop (fault_addr));
 		//uint8_t kpage = frame_get ();
 	}
-
+*/
   if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 		syscall_exit (-1);
 
