@@ -1,3 +1,4 @@
+#ifndef FRAME_H_
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/synch.h"
@@ -18,3 +19,5 @@ struct frame_entry
 
 struct list frame_list;
 struct lock frame_lock;
+
+#endif /* vm/frame.h end */
