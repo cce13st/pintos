@@ -58,12 +58,19 @@ struct spt_entry
 {
 	struct spt_entry *spte, *aux;
 	struct hash_elem *target;
+	struct list_elem *target_frame;
 
 	aux = (struct spt_entry *)malloc (sizeof (struct spt_entry));
 	aux->kpage = kpage;
 
 	target = hash_find (&t->spt_hash, &aux->hash_elem);
 	spte = hash_entry (target, struct spt_entry, hash_elem);
+
+	//find the target frame
+	target_frame = find_target_frame (kpage);
+	//remove that frame and push_back into the frame_list
+	list_remove (target_frame);
+	list_push_back (&frame_list, target_frame);
 
 	free(aux);
  	return spte;
