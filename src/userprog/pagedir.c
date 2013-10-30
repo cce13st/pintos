@@ -44,11 +44,10 @@ pagedir_destroy (uint32_t *pd)
 				{
           if (*pte & PTE_P)
 					{
-						spt_remove (pte_get_page (*pte));
+						spt_remove (pte_get_page (*pte), thread_current());
             palloc_free_page (pte_get_page (*pte));
 					}
 				}
-				spt_remove (pt);
         palloc_free_page (pt);
       }
 

@@ -118,6 +118,7 @@ start_process (void *f_name)
   strlcpy (load_name, file_name, i+1);
   load_name[i] = 0;
 
+	spt_init (thread_current ());
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -575,7 +576,6 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 
 	if (result)
-		//spt_insert (upage, kpage, thread_current ());
-	return result;
+		spt_insert (upage, kpage, thread_current ());
 	return result;
 }

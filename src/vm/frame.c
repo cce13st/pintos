@@ -18,7 +18,7 @@ void frame_init ()
  * 	upage : user page address,
  * 	kpage : kernel page address,
  * 	t : current thread */
-void frame_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
+void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
 {
 	lock_acquire (&frame_lock);
 	struct frame_entry *fte = (struct frame_entry *)malloc (sizeof (struct frame_entry));
@@ -26,28 +26,31 @@ void frame_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 	
-	bitmap_set (frame_alloc, (int)kpage/PGSIZE, true);
-	list_insert (&frame_list, &fte->list_elem);
+//	bitmap_set (frame_alloc, (int)kpage/PGSIZE, true);
+	list_push_back (&frame_list, &fte->list_elem);
+	printf ("upage %x kpage %x\n", upage, kpage);
 	lock_release (&frame_lock);
 }
 
 /* Remove entry from frame table */
-void frame_remove (uint8_t *kpage)
+void frame_remove (void *kpage)
 {
 	lock_acquire (&frame_lock);
 	struct frame_entry *aux;
 	struct list_elem *target;
 
-	for (target = list_front (&frame_list); target != list_end (&frame_list); target = list_next (&target))
+	printf ("list length %d\n", list_size (&frame_list));
+	for (target = list_begin (&frame_list); target != list_end (&frame_list); target = list_next (&target))
 	{
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->kpage == kpage)
 		{
-			bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
-			list_remove (&aux->list_elem);
+	//		bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
+			list_remove (target);
 			free (aux);
 			break;
 		}
+		printf ("kpage: %x\n", aux->kpage);
 	}
 
 	lock_release (&frame_lock);
