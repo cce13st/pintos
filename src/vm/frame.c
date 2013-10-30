@@ -28,7 +28,6 @@ void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
 	
 //	bitmap_set (frame_alloc, (int)kpage/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
-	printf ("upage %x kpage %x\n", upage, kpage);
 	lock_release (&frame_lock);
 }
 
@@ -39,8 +38,7 @@ void frame_remove (void *kpage)
 	struct frame_entry *aux;
 	struct list_elem *target;
 
-	printf ("list length %d\n", list_size (&frame_list));
-	for (target = list_begin (&frame_list); target != list_end (&frame_list); target = list_next (&target))
+	for (target = list_begin (&frame_list); target != list_end (&frame_list); target = list_next (target))
 	{
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->kpage == kpage)
@@ -50,7 +48,6 @@ void frame_remove (void *kpage)
 			free (aux);
 			break;
 		}
-		printf ("kpage: %x\n", aux->kpage);
 	}
 
 	lock_release (&frame_lock);
