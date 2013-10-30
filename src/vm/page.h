@@ -1,11 +1,10 @@
 #include "threads/synch.h"
-#include "vm/frame.h"
-#include "lib/kernel/hash.h"
+#include <hash.h>
 
-void spt_init (void);
-void spt_insert (uint8_t *, uint8_t *, struct thread *);
-void spt_remove (uint8_t *);
-struct spt_entry *spt_find_kpage (uint8_t *);
+void spt_init (struct thread *);
+void spt_insert (uint8_t *, void *, struct thread *);
+void spt_remove (void *, struct thread *);
+struct spt_entry *spt_find_kpage (void *, struct thread *);
 
 struct spt_entry
 {
@@ -18,6 +17,3 @@ struct spt_entry
 
 	struct hash_elem hash_elem;
 };
-
-struct lock spt_lock;
-struct hash spt_hash;

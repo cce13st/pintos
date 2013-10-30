@@ -1,4 +1,5 @@
 #include "vm/page.h"
+#include "vm/frame.h"
 #include "threads/malloc.h"
 
 unsigned page_val (const struct hash_elem *e, void *aux UNUSED)
@@ -15,7 +16,7 @@ bool page_cmp (const struct hash_elem *a, const struct hash_elem *b, void *aux U
 }
 
 static struct spt_entry
-*init_entry (uint8_t *upage, uint8_t *kpage, struct thread *t)
+*init_entry (uint8_t *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte;
 	spte = (struct spt_entry *)malloc (sizeof (struct spt_entry));
@@ -29,44 +30,41 @@ static struct spt_entry
 }
 
 /* Initialize Supplemental Page Table */
-void spt_init ()
+void spt_init (struct thread *t)
 {
-	lock_init (&spt_lock);
-	hash_init (&spt_hash, &page_val, &page_cmp, NULL);
+	hash_init (&t->spt_hash, &page_val, &page_cmp, NULL);
 }
 
 /* Insert supplement page table entry */
-void spt_insert (uint8_t *upage, uint8_t *kpage, struct thread *t)
+void spt_insert (uint8_t *upage, void *kpage, struct thread *t)
 {
-	lock_acquire (&spt_lock);
 	struct spt_entry *spte = init_entry (upage, kpage, t);
-	hash_insert (&spt_hash, &spte->hash_elem);
-//	frame_insert (upage, kpage, t);
-	lock_release (&spt_lock);
+	hash_insert (&t->spt_hash, &spte->hash_elem);
+	frame_insert (upage, kpage, t);
 }	
 
 /* Remove supplement page table entry */
-void spt_remove (uint8_t *kpage)
+void spt_remove (void *kpage, struct thread *t)
 {
-	lock_acquire (&spt_lock);
-	struct spt_entry *spte = spt_find_kpage (kpage);
-	hash_delete (&spt_hash, &spte->hash_elem);
+	struct spt_entry *spte = spt_find_kpage (kpage, t);
+	hash_delete (&t->spt_hash, &spte->hash_elem);
 	free (spte);
-	//frame_remove (kpage);
-	lock_release (&spt_lock);
+	frame_remove (kpage);
 }
 
 /* Find the spt_entry */
 struct spt_entry
-*spt_find_kpage (uint8_t *kpage)
+*spt_find_kpage (void *kpage, struct thread *t)
 {
-	lock_acquire (&spt_lock);
 	struct spt_entry *spte, *aux;
 	struct hash_elem *target;
+
 	aux = (struct spt_entry *)malloc (sizeof (struct spt_entry));
 	aux->kpage = kpage;
-	target = hash_find (&spt_hash, &aux->hash_elem);
+
+	target = hash_find (&t->spt_hash, &aux->hash_elem);
 	spte = hash_entry (target, struct spt_entry, hash_elem);
-	lock_release (&spt_lock);
+
+	free(aux);
  	return spte;
 }

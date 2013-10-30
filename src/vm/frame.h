@@ -1,11 +1,6 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 
-void frame_init (void);
-void frame_insert (uint8_t *, uint8_t *, struct thread *);
-void frame_remove (uint8_t *);
-uint8_t frame_get (void);
-
 struct frame_entry
 {
 	uint8_t *upage;
@@ -17,3 +12,8 @@ struct frame_entry
 struct list frame_list;
 struct lock frame_lock;
 struct bitmap *frame_alloc;
+
+void frame_init (void);
+void frame_insert (uint8_t *, void *, struct thread *);
+void frame_remove (void *);
+uint8_t frame_get (void);
