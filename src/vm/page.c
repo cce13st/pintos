@@ -68,3 +68,17 @@ struct spt_entry
 	free(aux);
  	return spte;
 }
+
+void stack_growth()
+{// Stack growth condition is satisfied
+/*
+	//Request one more page
+	struct spt_entry *spte;
+	void *kpage;
+	
+	kpage = palloc_get_page (PAL_USER);
+	spt_insert (upage, kpage, thread_current ());
+
+	
+*/
+}
