@@ -1,6 +1,7 @@
 #include "frame.h"
 #include <bitmap.h>
 #include "threads/vaddr.h"
+//#include "userprog/pagedir.h"
 
 uint8_t eviction ();
 struct frame_entry *find_victim ();
@@ -64,7 +65,8 @@ uint8_t eviction ()
 {
 	struct frame_entry *fte = find_victim ();
 	uint8_t empty_page = fte->kpage;
-	//swap_out (empty_page);
+	swap_out (empty_page);
+	//pagedir_clear_page ((&fte->t)->pagedir, &fte->upage);
 
 	return empty_page;
 }

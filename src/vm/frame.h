@@ -17,3 +17,5 @@ void frame_init (void);
 void frame_insert (uint8_t *, void *, struct thread *);
 void frame_remove (void *);
 uint8_t frame_get (void);
+
+struct list_elem *find_target_frame (void *);
