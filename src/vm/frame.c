@@ -72,7 +72,7 @@ uint8_t eviction ()
 {
 	struct frame_entry *fte = find_victim ();
 	uint8_t empty_page = fte->kpage;
-	//swap_out (empty_page);
+	swap_out (empty_page);
 
 	return empty_page;
 }

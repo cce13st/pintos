@@ -5,6 +5,7 @@ void spt_init (struct thread *);
 void spt_insert (uint8_t *, void *, struct thread *);
 void spt_remove (void *, struct thread *);
 struct spt_entry *spt_find_kpage (void *, struct thread *);
+void stack_growth (uint8_t *, struct thread *);
 
 struct spt_entry
 {

@@ -1,7 +1,9 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "userprog/process.h"
 
 unsigned page_val (const struct hash_elem *e, void *aux UNUSED)
 {
@@ -70,16 +72,15 @@ struct spt_entry
  	return spte;
 }
 
-void stack_growth()
+void stack_growth(uint8_t *upage, struct thread *t)
 {// Stack growth condition is satisfied
-/*
+	
 	//Request one more page
 	struct spt_entry *spte;
-	void *kpage;
-	
-	kpage = palloc_get_page (PAL_USER);
-	spt_insert (upage, kpage, thread_current ());
+	void *new;
 
-	
-*/
+	new = palloc_get_page (PAL_USER);
+  pagedir_get_page (t->pagedir, upage);
+  pagedir_set_page (t->pagedir, upage, new, true);
+	spt_insert (upage, new, t);
 }

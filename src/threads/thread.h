@@ -117,7 +117,11 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
+		/* Supplemental page table hash */
 		struct hash spt_hash;
+
+		/* Stack limit */
+		uint8_t *stack_limit;
   };
 
 struct thread_info
