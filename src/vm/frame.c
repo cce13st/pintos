@@ -8,7 +8,7 @@ struct frame_entry *find_victim ();
 /* Initialize Frame Table */
 void frame_init ()
 {
-	frame_alloc = bitmap_create (1000);
+	frame_alloc = bitmap_create (PGSIZE);
 	lock_init (&frame_lock);
 	list_init (&frame_list);
 }
@@ -26,7 +26,7 @@ void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 	
-//	bitmap_set (frame_alloc, (int)kpage/PGSIZE, true);
+	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 	lock_release (&frame_lock);
 }
@@ -43,7 +43,7 @@ void frame_remove (void *kpage)
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->kpage == kpage)
 		{
-	//		bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
+			bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
 			list_remove (target);
 			free (aux);
 			break;
@@ -56,13 +56,15 @@ void frame_remove (void *kpage)
 /* Find free frame */
 uint8_t frame_get ()
 {
+	lock_acquire (&frame_lock);
 	uint8_t kpage;
 	kpage = (uint8_t) bitmap_scan_and_flip (frame_alloc, 0, 1, false);
 	if (kpage == BITMAP_ERROR)
 		kpage = eviction();
 	else
-		kpage << 12;
+		kpage /= PGSIZE;
 
+	lock_release (&frame_lock);
 	return kpage;
 }
 

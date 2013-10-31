@@ -1,6 +1,7 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
 
 unsigned page_val (const struct hash_elem *e, void *aux UNUSED)
 {
@@ -40,7 +41,7 @@ void spt_insert (uint8_t *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte = init_entry (upage, kpage, t);
 	hash_insert (&t->spt_hash, &spte->hash_elem);
-	frame_insert (upage, kpage, t);
+	frame_insert (upage, kpage-PHYS_BASE, t);
 }	
 
 /* Remove supplement page table entry */
@@ -49,7 +50,7 @@ void spt_remove (void *kpage, struct thread *t)
 	struct spt_entry *spte = spt_find_kpage (kpage, t);
 	hash_delete (&t->spt_hash, &spte->hash_elem);
 	free (spte);
-	frame_remove (kpage);
+	frame_remove (kpage-PHYS_BASE);
 }
 
 /* Find the spt_entry */
