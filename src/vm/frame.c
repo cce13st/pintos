@@ -8,7 +8,7 @@ struct frame_entry *find_victim ();
 /* Initialize Frame Table */
 void frame_init ()
 {
-	frame_alloc = bitmap_create (PGSIZE);
+	frame_alloc = bitmap_create (1000);
 	lock_init (&frame_lock);
 	list_init (&frame_list);
 }

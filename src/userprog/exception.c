@@ -128,6 +128,7 @@ page_fault (struct intr_frame *f)
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
+	bool growth;			 /* True: When stack growth */
   void *fault_addr;  /* Fault address. */
 	struct thread *t;	 /* Current thread */
 
@@ -152,19 +153,46 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+	unsigned diff = (unsigned)((unsigned)t->stack_limit - (unsigned)fault_addr);
+	growth = (f->esp-32 <= fault_addr);
+	//printf ("%x %x %x %d\n", t->stack_limit, fault_addr, f->esp, growth);
 
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-/*
-	if (not_present)
-	{
-		// Find fault_addr from SPT s.t. fault_addr_page and t
-		struct spt_entry *spte = spt_find_kpage (vtop (fault_addr));
-		//uint8_t kpage = frame_get ();
+
+	/* Stack growth */
+	if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
+		uint8_t *pgalloc, *upage;
+		upage = (unsigned)fault_addr / PGSIZE;
+		upage = (unsigned)upage * PGSIZE;
+		for (pgalloc = t->stack_limit - PGSIZE; pgalloc >= upage; pgalloc -= PGSIZE)
+			stack_growth(pgalloc, t);
+		return;
 	}
-*/
+
+	/* Find page from swap table */
+	if (false)
+	//if (!is_kernel_vaddr (fault_addr) && user && not_present)
+	{
+		struct spt_entry *spte;
+		void *kpage, *fault_frame = vtop (fault_addr);
+		fault_frame = (unsigned)fault_frame / PGSIZE;
+		fault_frame = (unsigned)fault_frame * PGSIZE;
+		spte = spt_find_kpage (fault_frame);
+		if (spte == NULL)
+			syscall_exit (-1);
+
+		kpage = frame_get ();
+		swap_in (kpage);
+		return;
+	}
+
+	/* Protect code segment */
+	if (fault_addr < 0x8050000)
+		syscall_exit (-1);
+
   if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 		syscall_exit (-1);
 
@@ -178,4 +206,12 @@ page_fault (struct intr_frame *f)
           user ? "user" : "kernel");
   kill (f);
 }
-
+/*
+static void *
+addr_page (void *addr)
+{
+	unsigned page = (unsigned) addr;
+	page /= PGSIZE;
+	page *= PGSIZE;
+	return (void *)page;
+}*/
