@@ -13,7 +13,7 @@ struct spt_entry
 	bool swapped;
 	uint8_t *upage;
 	uint8_t swap_idx;
-	uint8_t *kpage;
+	void *kpage;
 	struct thread *t;
 
 	struct hash_elem hash_elem;

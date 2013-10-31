@@ -91,6 +91,8 @@ main (void)
 
 	/* Initialize frame table */
 	frame_init ();
+
+	swap_init ();
   
 	/* Segmentation. */
 #ifdef USERPROG

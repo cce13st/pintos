@@ -139,6 +139,8 @@ start_process (void *f_name)
   file_deny_write (thread_current ()->self);
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
+
+	printf ("execute %x\n", if_.esp);
 	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its

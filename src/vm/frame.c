@@ -2,13 +2,16 @@
 #include <bitmap.h>
 #include "threads/vaddr.h"
 
-uint8_t eviction ();
+void *eviction ();
 struct frame_entry *find_victim ();
 
 /* Initialize Frame Table */
 void frame_init ()
 {
-	frame_alloc = bitmap_create (1000);
+	int i;
+	frame_alloc = bitmap_create (1024);
+	for (i=0; i<0x28b; i++)
+		bitmap_set (frame_alloc, i, true);
 	lock_init (&frame_lock);
 	list_init (&frame_list);
 }
@@ -20,21 +23,22 @@ void frame_init ()
  * 	t : current thread */
 void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
 {
-	lock_acquire (&frame_lock);
+//	lock_acquire (&frame_lock);
 	struct frame_entry *fte = (struct frame_entry *)malloc (sizeof (struct frame_entry));
 	fte->upage = upage;
 	fte->kpage = kpage;
 	fte->t = t;
-	
+
+//	printf ("frame insert %x %x\n", upage, kpage);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
-	lock_release (&frame_lock);
+//	lock_release (&frame_lock);
 }
 
 /* Remove entry from frame table */
 void frame_remove (void *kpage)
 {
-	lock_acquire (&frame_lock);
+//	lock_acquire (&frame_lock);
 	struct frame_entry *aux;
 	struct list_elem *target;
 
@@ -50,30 +54,33 @@ void frame_remove (void *kpage)
 		}
 	}
 
-	lock_release (&frame_lock);
+//	lock_release (&frame_lock);
 }
 
 /* Find free frame */
-uint8_t frame_get ()
+void *frame_get ()
 {
-	lock_acquire (&frame_lock);
-	uint8_t kpage;
-	kpage = (uint8_t) bitmap_scan_and_flip (frame_alloc, 0, 1, false);
+//	lock_acquire (&frame_lock);
+	void *kpage;
+	kpage = (void *) bitmap_scan (frame_alloc, 0, 1, false);
 	if (kpage == BITMAP_ERROR)
 		kpage = eviction();
-	else
-		kpage /= PGSIZE;
-
-	lock_release (&frame_lock);
+	else{
+		kpage = (unsigned)kpage * PGSIZE;
+		kpage = (unsigned)kpage + 0xc028b000;
+	}
+	
+//	lock_release (&frame_lock);
 	return kpage;
 }
 
-uint8_t eviction ()
+static void *
+eviction ()
 {
 	struct frame_entry *fte = find_victim ();
-	uint8_t empty_page = fte->kpage;
+	void *empty_page = fte->kpage + 0xc0000000;
 	swap_out (empty_page);
-
+	
 	return empty_page;
 }
 
@@ -81,8 +88,11 @@ struct frame_entry *
 find_victim ()
 {
 	struct frame_entry *victim;
-	
-	victim = list_entry (list_begin (&frame_list), struct frame_entry, list_elem);
+	struct list_elem *e;
+
+	e = list_begin (&frame_list);
+	victim = list_entry (e, struct frame_entry, list_elem);
+	list_remove (e);
 	
 	return victim;
 }
