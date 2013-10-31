@@ -17,3 +17,5 @@ struct spt_entry
 
 	struct hash_elem hash_elem;
 };
+
+struct list frame_stack;

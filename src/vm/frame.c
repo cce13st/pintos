@@ -66,7 +66,9 @@ uint8_t eviction ()
 	struct frame_entry *fte = find_victim ();
 	uint8_t empty_page = fte->kpage;
 	swap_out (empty_page);
-	//pagedir_clear_page ((&fte->t)->pagedir, &fte->upage);
+	/* update the page NOT_PRESENT  */
+//pagedir_clear_page ((&fte->t)->pagedir, &fte->upage);
+
 
 	return empty_page;
 }
@@ -76,7 +78,7 @@ find_victim ()
 {
 	struct frame_entry *victim;
 	
-	victim = list_entry (list_begin (&frame_list), struct frame_entry, list_elem);
+	victim = list_entry (list_begin (&frame_stack), struct frame_entry, list_elem);
 	
 	return victim;
 }
