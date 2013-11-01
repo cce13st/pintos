@@ -1,6 +1,7 @@
 #include "threads/vaddr.h"
 #include "threads/thread.h"
 #include "vm/swap.h"
+#include "vm/frame.h"
 #include "userprog/pagedir.h"
 #include <bitmap.h>
 
@@ -11,7 +12,7 @@ void swap_init ()
 }
 
 /* swap out page from frame to disk */
-void swap_out (void *upage)
+void swap_out (struct frame_entry *fte)
 {
 	lock_acquire (&swap_lock);
 	int i;
@@ -21,8 +22,9 @@ void swap_out (void *upage)
 	struct disk *swap_disk;
 	swap_disk = disk_get (1,1);
 
-	spte = spt_find_upage (upage, thread_current ());
+	spte = spt_find_upage (fte->upage, fte->t);
 	src = spte->kpage;
+
 
 	/* Find empty slot of swap disk */
 	dst = (disk_sector_t) bitmap_scan (swap_alloc, 0, 1, false);

@@ -210,6 +210,9 @@ process_exit (void)
 		file_close (fip->f);
 		free (fip);
   }
+	file_close (curr->self);
+	curr->self = NULL;
+  sema_up (&curr->p_wait);
   pd = curr->pagedir;
   if (pd != NULL) 
     {
@@ -222,11 +225,8 @@ process_exit (void)
          that's been freed (and cleared). */
       curr->pagedir = NULL;
       pagedir_activate (NULL);
-      //pagedir_destroy (pd);
+      pagedir_destroy (pd);
     }
-	file_close (curr->self);
-	curr->self = NULL;
-  sema_up (&curr->p_wait);
 }
 
 /* Sets up the CPU for running user code in the current

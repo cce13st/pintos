@@ -79,9 +79,9 @@ static void *
 eviction ()
 {
 	struct frame_entry *fte = find_victim ();
-	void *empty_page, *out_page = fte->upage;
+	void *empty_page;
 	empty_page = fte->kpage;
-	swap_out (out_page);
+	swap_out (fte);
 	pagedir_clear_page (fte->t->pagedir, fte->upage);
 	frame_remove (fte->kpage);
 

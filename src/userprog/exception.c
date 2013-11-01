@@ -167,7 +167,7 @@ page_fault (struct intr_frame *f)
 	
 	/* Find page from swap table */
 	spte = spt_find_upage (fault_frame, t);
-//	printf ("fault_handler %x %x %d %x\n", fault_addr, f->esp, t->tid, spte);
+	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
 
 	/* Stack growth */
 	if (spte == NULL){
