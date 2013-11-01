@@ -51,7 +51,8 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (t_name, PRI_DEFAULT, start_process, fn_copy);
   sema_down (&thread_current ()->load_wait); 
-  if (tid == TID_ERROR)
+  
+	if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   if (thread_current ()->load_fail){
     thread_current ()->load_fail = true;
@@ -140,7 +141,6 @@ start_process (void *f_name)
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
 
-	printf ("execute %x\n", if_.esp);
 	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -545,6 +545,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
+	printf ("setup_stack\n");
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {

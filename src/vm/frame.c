@@ -21,7 +21,7 @@ void frame_init ()
  * 	upage : user page address,
  * 	kpage : kernel page address,
  * 	t : current thread */
-void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
+void frame_insert (void *upage, void *kpage, struct thread *t)
 {
 //	lock_acquire (&frame_lock);
 	struct frame_entry *fte = (struct frame_entry *)malloc (sizeof (struct frame_entry));
@@ -29,7 +29,6 @@ void frame_insert (uint8_t *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
-//	printf ("frame insert %x %x\n", upage, kpage);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 //	lock_release (&frame_lock);
@@ -69,7 +68,6 @@ void *frame_get ()
 		kpage = (unsigned)kpage * PGSIZE;
 		kpage = (unsigned)kpage + 0xc028b000;
 	}
-	
 //	lock_release (&frame_lock);
 	return kpage;
 }
@@ -80,7 +78,8 @@ eviction ()
 	struct frame_entry *fte = find_victim ();
 	void *empty_page = fte->kpage + 0xc0000000;
 	swap_out (empty_page);
-	
+	pagedir_clear_page (fte->t->pagedir, fte->upage);
+	frame_remove (fte->kpage);
 	return empty_page;
 }
 
@@ -90,9 +89,7 @@ find_victim ()
 	struct frame_entry *victim;
 	struct list_elem *e;
 
-	e = list_begin (&frame_list);
+	e = list_front (&frame_list);
 	victim = list_entry (e, struct frame_entry, list_elem);
-	list_remove (e);
-	
 	return victim;
 }

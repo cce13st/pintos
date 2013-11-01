@@ -141,10 +141,11 @@ page_fault (struct intr_frame *f)
      (#PF)". */
 	t = thread_current ();
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-
-  /* Turn interrupts back on (they were only off so that we could
+  
+	/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
+	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
 
   /* Count page faults. */
   page_fault_cnt++;
@@ -155,14 +156,12 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 	unsigned diff = (unsigned)((unsigned)t->stack_limit - (unsigned)fault_addr);
 	growth = (f->esp-32 <= fault_addr);
-	
 
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
 
-	//printf ("pault handler %x %x %d\n", fault_addr, f->esp, t->tid);
 	/* Stack growth */
 	if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
 		uint8_t *pgalloc, *upage;

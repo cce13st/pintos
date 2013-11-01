@@ -19,7 +19,7 @@ bool page_cmp (const struct hash_elem *a, const struct hash_elem *b, void *aux U
 }
 
 static struct spt_entry
-*init_entry (uint8_t *upage, void *kpage, struct thread *t)
+*init_entry (void *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte;
 	spte = (struct spt_entry *)malloc (sizeof (struct spt_entry));
@@ -39,7 +39,7 @@ void spt_init (struct thread *t)
 }
 
 /* Insert supplement page table entry */
-void spt_insert (uint8_t *upage, void *kpage, struct thread *t)
+void spt_insert (void *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte = init_entry (upage, kpage, t);
 	hash_insert (&t->spt_hash, &spte->hash_elem);
@@ -72,7 +72,7 @@ struct spt_entry
  	return spte;
 }
 
-void stack_growth(uint8_t *upage, struct thread *t)
+void stack_growth(void *upage, struct thread *t)
 {// Stack growth condition is satisfied
 	
 	//Request one more page
