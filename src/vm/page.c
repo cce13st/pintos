@@ -66,6 +66,8 @@ struct spt_entry
 	aux->upage = upage;
 
 	target = hash_find (&t->spt_hash, &aux->hash_elem);
+	if (target == NULL)
+		return NULL;
 	spte = hash_entry (target, struct spt_entry, hash_elem);
 	
 	free(aux);

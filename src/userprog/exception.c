@@ -139,8 +139,8 @@ page_fault (struct intr_frame *f)
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
-	t = thread_current ();
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
+	t = thread_current ();
   
 	/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -153,47 +153,47 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-	unsigned diff = (unsigned)((unsigned)t->stack_limit - (unsigned)fault_addr);
 	growth = (f->esp-32 <= fault_addr);
 
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
-
-	/* Stack growth */
-	if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
-		uint8_t *pgalloc, *upage;
-		upage = (unsigned)fault_addr / PGSIZE;
-		upage = (unsigned)upage * PGSIZE;
-		for (pgalloc = t->stack_limit - PGSIZE; pgalloc >= upage; pgalloc -= PGSIZE)
-			stack_growth(pgalloc, t);
-		return;
-	}
-
-	/* Protect code segment */
-	if (fault_addr < 0x8040000)
-		syscall_exit (-1);
-
-  if ((is_kernel_vaddr(fault_addr) && user))
-		syscall_exit (-1);
+	
+	struct spt_entry *spte;
+	void *kpage, *fault_frame = fault_addr;
+	fault_frame = (unsigned)fault_frame / PGSIZE;
+	fault_frame = (unsigned)fault_frame * PGSIZE;
 	
 	/* Find page from swap table */
-	if (true)
-	{
-		struct spt_entry *spte;
-		void *kpage, *fault_frame = fault_addr;
-		fault_frame = (unsigned)fault_frame / PGSIZE;
-		fault_frame = (unsigned)fault_frame * PGSIZE;
+	spte = spt_find_upage (fault_frame, t);
+//	printf ("fault_handler %x %x %d %x\n", fault_addr, f->esp, t->tid, spte);
 
-		spte = spt_find_upage (fault_frame, t);
-
-		if (spte == NULL)
+	/* Stack growth */
+	if (spte == NULL){
+		if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
+			uint8_t *pgalloc, *upage;
+			upage = (unsigned)fault_addr / PGSIZE;
+			upage = (unsigned)upage * PGSIZE;
+			for (pgalloc = t->stack_limit - PGSIZE; pgalloc >= upage; pgalloc -= PGSIZE)
+				stack_growth(pgalloc, t);
+			return;
+		}
+		
+		if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 			syscall_exit (-1);
+	
+		/* Protect code segment */
+		if (fault_addr < 0x8050000)
+			syscall_exit (-1);
+	}
 
+	if (not_present)
+	{
 		kpage = frame_get ();
 		swap_in (spte, kpage);
+
+//		hex_dump ((int)kpage, kpage, 4096, true);
 		return;
 	}
 

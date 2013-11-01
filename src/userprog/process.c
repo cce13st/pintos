@@ -141,7 +141,6 @@ start_process (void *f_name)
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
 
- 	hex_dump ((int)if_.esp, if_.esp, 32, true);
 	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -223,7 +222,7 @@ process_exit (void)
          that's been freed (and cleared). */
       curr->pagedir = NULL;
       pagedir_activate (NULL);
-      pagedir_destroy (pd);
+      //pagedir_destroy (pd);
     }
 	file_close (curr->self);
 	curr->self = NULL;
