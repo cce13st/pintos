@@ -1,5 +1,7 @@
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "vm/swap.h"
+#include "userprog/pagedir.h"
 #include <bitmap.h>
 
 void swap_init ()
@@ -22,7 +24,7 @@ void swap_out (void *upage)
 	spte = spt_find_upage (upage, thread_current ());
 	src = spte->kpage;
 
-	printf ("swap_out %x %x\n", upage, spte->kpage);
+//	printf ("swap_out %x %x\n", upage, spte->kpage);
 
 	/* Find empty slot of swap disk */
 	dst = (disk_sector_t) bitmap_scan (swap_alloc, 0, 1, false);
@@ -32,12 +34,14 @@ void swap_out (void *upage)
 	/* Write on swap disk */
 	for (i=0; i<8; i++) 
 		disk_write (swap_disk, dst*8 + i, src+512*i);
+
 	memset (src, 0, PGSIZE);
 	bitmap_set (swap_alloc, dst, true);
 
 	spte->swapped = true;
 	spte->swap_idx = dst*8;
 
+//	printf ("swap_out %x %x\n", upage, spte->kpage);
 	lock_release (&swap_lock);
 }
 
@@ -61,9 +65,10 @@ void swap_in (struct spt_entry *spte, void *kpage)
 
 	spte->swapped = false;
 	spte->kpage = dst;
-	frame_insert(spte->upage, spte->kpage, spte->t);
-
-	printf ("swap in\n");
+//	printf ("swap_in %x %x\n", spte->upage, spte->kpage);
+	frame_insert(spte->upage, spte->kpage-PHYS_BASE, spte->t);
+  pagedir_get_page (spte->t->pagedir, spte->upage);
+  pagedir_set_page (spte->t->pagedir, spte->upage, spte->kpage, true);
 
 	lock_release (&swap_lock);
 }

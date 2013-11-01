@@ -29,7 +29,7 @@ void frame_insert (void *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
-	printf ("frame_insert %x %x\n", upage, kpage);
+//	printf ("frame_insert %x %x\n", upage, kpage);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 //	lock_release (&frame_lock);
@@ -71,7 +71,6 @@ void *frame_get ()
 		kpage = (unsigned)kpage + 0xc028b000;
 	}
 
-	printf ("eviction %x\n", kpage);
 //	lock_release (&frame_lock);
 	return kpage;
 }

@@ -126,7 +126,7 @@ start_process (void *f_name)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (load_name, &if_.eip, &if_.esp);
-  
+ 
   /* If load failed, quit. */
   if (!success){
     thread_current ()->parent->load_fail = true;
@@ -141,6 +141,7 @@ start_process (void *f_name)
   if_.esp = args_passing (if_.esp, file_name);
   palloc_free_page (file_name); 
 
+ 	hex_dump ((int)if_.esp, if_.esp, 32, true);
 	/* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -545,7 +546,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-	printf ("setup_stack\n");
+	//printf ("setup_stack\n");
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {

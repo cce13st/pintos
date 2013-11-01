@@ -145,7 +145,6 @@ page_fault (struct intr_frame *f)
 	/* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
-	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
 
   /* Count page faults. */
   page_fault_cnt++;
@@ -161,6 +160,7 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
+	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
 
 	/* Stack growth */
 	if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
@@ -173,21 +173,22 @@ page_fault (struct intr_frame *f)
 	}
 
 	/* Protect code segment */
-	if (fault_addr < 0x8050000)
+	if (fault_addr < 0x8040000)
 		syscall_exit (-1);
 
-  if ((is_kernel_vaddr(fault_addr) && user) || not_present)
+  if ((is_kernel_vaddr(fault_addr) && user))
 		syscall_exit (-1);
 	
 	/* Find page from swap table */
-	if (!is_kernel_vaddr (fault_addr) && user)
+	if (true)
 	{
 		struct spt_entry *spte;
 		void *kpage, *fault_frame = fault_addr;
 		fault_frame = (unsigned)fault_frame / PGSIZE;
 		fault_frame = (unsigned)fault_frame * PGSIZE;
 
-		spte = spt_find_upage (fault_frame);
+		spte = spt_find_upage (fault_frame, t);
+
 		if (spte == NULL)
 			syscall_exit (-1);
 

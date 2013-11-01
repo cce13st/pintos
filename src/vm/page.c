@@ -67,14 +67,13 @@ struct spt_entry
 
 	target = hash_find (&t->spt_hash, &aux->hash_elem);
 	spte = hash_entry (target, struct spt_entry, hash_elem);
-
+	
 	free(aux);
  	return spte;
 }
 
 void stack_growth(void *upage, struct thread *t)
-{// Stack growth condition is satisfied
-	
+{
 	//Request one more page
 	struct spt_entry *spte;
 	void *new;
