@@ -63,12 +63,15 @@ void *frame_get ()
 //	lock_acquire (&frame_lock);
 	void *kpage;
 	kpage = (void *) bitmap_scan (frame_alloc, 0, 1, false);
-	if (kpage == BITMAP_ERROR)
+	if (kpage == BITMAP_ERROR){
 		kpage = eviction();
+	}
 	else{
 		kpage = (unsigned)kpage * PGSIZE;
 		kpage = (unsigned)kpage + 0xc028b000;
 	}
+
+	printf ("eviction %x\n", kpage);
 //	lock_release (&frame_lock);
 	return kpage;
 }
@@ -77,10 +80,13 @@ static void *
 eviction ()
 {
 	struct frame_entry *fte = find_victim ();
-	void *empty_page = fte->upage;
-	swap_out (empty_page);
+	void *empty_page, *out_page = fte->upage;
+	empty_page = fte->kpage;
+	swap_out (out_page);
 	pagedir_clear_page (fte->t->pagedir, fte->upage);
 	frame_remove (fte->kpage);
+
+	empty_page = (unsigned)empty_page + 0xc0000000;
 	return empty_page;
 }
 
