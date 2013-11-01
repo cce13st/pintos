@@ -29,6 +29,7 @@ void frame_insert (void *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
+	printf ("frame_insert %x %x\n", upage, kpage);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 //	lock_release (&frame_lock);
@@ -76,7 +77,7 @@ static void *
 eviction ()
 {
 	struct frame_entry *fte = find_victim ();
-	void *empty_page = fte->kpage + 0xc0000000;
+	void *empty_page = fte->upage;
 	swap_out (empty_page);
 	pagedir_clear_page (fte->t->pagedir, fte->upage);
 	frame_remove (fte->kpage);

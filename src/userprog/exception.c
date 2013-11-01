@@ -183,15 +183,16 @@ page_fault (struct intr_frame *f)
 	if (!is_kernel_vaddr (fault_addr) && user)
 	{
 		struct spt_entry *spte;
-		void *kpage, *fault_frame = vtop (fault_addr);
+		void *kpage, *fault_frame = fault_addr;
 		fault_frame = (unsigned)fault_frame / PGSIZE;
 		fault_frame = (unsigned)fault_frame * PGSIZE;
-		spte = spt_find_kpage (fault_frame);
+
+		spte = spt_find_upage (fault_frame);
 		if (spte == NULL)
 			syscall_exit (-1);
 
 		kpage = frame_get ();
-		swap_in (kpage);
+		swap_in (spte, kpage);
 		return;
 	}
 

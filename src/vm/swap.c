@@ -9,18 +9,21 @@ void swap_init ()
 }
 
 /* swap out page from frame to disk */
-void swap_out (void *kpage)
+void swap_out (void *upage)
 {
 	lock_acquire (&swap_lock);
 	int i;
-	void *src = kpage;
+	void *src;
 	unsigned dst;
 	struct spt_entry *spte;
 	struct disk *swap_disk;
 	swap_disk = disk_get (1,1);
 
-	spte = spt_find_kpage (kpage, thread_current ());
-	
+	spte = spt_find_upage (upage, thread_current ());
+	src = spte->kpage;
+
+	printf ("swap_out %x %x\n", upage, spte->kpage);
+
 	/* Find empty slot of swap disk */
 	dst = (disk_sector_t) bitmap_scan (swap_alloc, 0, 1, false);
 	if (dst == BITMAP_ERROR)
@@ -39,18 +42,16 @@ void swap_out (void *kpage)
 }
 
 /* swap in page from disk to frame */
-void swap_in (void *kpage)
+void swap_in (struct spt_entry *spte, void *kpage)
 {
 	lock_acquire (&swap_lock);
 	int i;
 	unsigned src;
 	void *dst = kpage;
-	struct spt_entry *spte;
 	struct disk *swap_disk;
 	swap_disk = disk_get (1,1);
 
   /* Find swap slot containing upage */
-	spte = spt_find_kpage (kpage, thread_current ());
 	src = spte->swap_idx;
 
 	/* Find swap */
@@ -59,7 +60,7 @@ void swap_in (void *kpage)
 	bitmap_set (swap_alloc, src, false);
 
 	spte->swapped = false;
-	spte->kpage = src;
+	spte->kpage = dst;
 	frame_insert(spte->upage, spte->kpage, spte->t);
 
 	printf ("swap in\n");
