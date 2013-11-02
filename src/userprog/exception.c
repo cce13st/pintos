@@ -159,7 +159,10 @@ page_fault (struct intr_frame *f)
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-	
+	if (fault_addr == 4)
+		return;
+
+	printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
 	struct spt_entry *spte;
 	void *kpage, *fault_frame = fault_addr;
 	fault_frame = (unsigned)fault_frame / PGSIZE;
@@ -167,8 +170,7 @@ page_fault (struct intr_frame *f)
 	
 	/* Find page from swap table */
 	spte = spt_find_upage (fault_frame, t);
-	printf ("fault_handler %x %x %d\n", fault_addr, f->esp, t->tid);
-
+	
 	/* Stack growth */
 	if (spte == NULL){
 		if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
@@ -190,10 +192,10 @@ page_fault (struct intr_frame *f)
 
 	if (not_present)
 	{
+//		lock_acquire (&frame_lock);
 		kpage = frame_get ();
 		swap_in (spte, kpage);
-
-//		hex_dump ((int)kpage, kpage, 4096, true);
+//		lock_release (&frame_lock);
 		return;
 	}
 

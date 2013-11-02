@@ -1,4 +1,5 @@
 #include "vm/page.h"
+#include "vm/swap.h"
 #include "vm/frame.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
@@ -73,6 +74,29 @@ struct spt_entry
 	free(aux);
  	return spte;
 }
+
+void spt_clear(struct thread *t)
+{
+	struct spt_entry *spte;
+	struct hash_elem *target;
+	
+	target = (struct hash_elem *) malloc(sizeof(struct hash_elem));
+	hash_first(target, &t->spt_hash);
+	while (target != NULL)
+	{
+		printf ("asfd\n");
+		spte = hash_entry (target, struct spt_entry, hash_elem);
+		if (spte->swapped && spte->t == t) 
+		{
+			bitmap_set (swap_alloc, spte->swap_idx, false);
+		}
+		target = hash_next (target);
+	}
+	free(target);
+	printf("spte clear\n");
+
+}
+
 
 void stack_growth(void *upage, struct thread *t)
 {

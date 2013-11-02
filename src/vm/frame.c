@@ -23,22 +23,21 @@ void frame_init ()
  * 	t : current thread */
 void frame_insert (void *upage, void *kpage, struct thread *t)
 {
-//	lock_acquire (&frame_lock);
+	lock_acquire (&frame_lock);
 	struct frame_entry *fte = (struct frame_entry *)malloc (sizeof (struct frame_entry));
 	fte->upage = upage;
 	fte->kpage = kpage;
 	fte->t = t;
 
-//	printf ("frame_insert %x %x\n", upage, kpage);
+	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
-//	lock_release (&frame_lock);
+	lock_release (&frame_lock);
 }
 
 /* Remove entry from frame table */
 void frame_remove (void *kpage)
 {
-//	lock_acquire (&frame_lock);
 	struct frame_entry *aux;
 	struct list_elem *target;
 
@@ -53,14 +52,11 @@ void frame_remove (void *kpage)
 			break;
 		}
 	}
-
-//	lock_release (&frame_lock);
 }
 
 /* Find free frame */
 void *frame_get ()
 {
-//	lock_acquire (&frame_lock);
 	void *kpage;
 	kpage = (void *) bitmap_scan (frame_alloc, 0, 1, false);
 	if (kpage == BITMAP_ERROR){
@@ -71,7 +67,6 @@ void *frame_get ()
 		kpage = (unsigned)kpage + 0xc028b000;
 	}
 
-//	lock_release (&frame_lock);
 	return kpage;
 }
 
@@ -98,4 +93,28 @@ find_victim ()
 	e = list_front (&frame_list);
 	victim = list_entry (e, struct frame_entry, list_elem);
 	return victim;
+}
+
+void
+frame_clear (struct thread *t)
+{
+	int cnt = 0;
+	struct frame_entry *aux;
+	struct list_elem *target, *garbage;
+	for (target = list_begin (&frame_list); target != list_end (&frame_list);)
+	{
+		aux = list_entry (target, struct frame_entry, list_elem);
+		if (aux->t == t)
+		{
+			bitmap_set (frame_alloc, (int)aux->kpage/PGSIZE, false);
+			garbage = target;
+			target = list_next (target);
+			list_remove (garbage);
+			free (aux);
+			cnt++;
+		}
+		else
+			target = list_next (target);
+	}
+	printf ("%d frame clear\n", cnt);
 }

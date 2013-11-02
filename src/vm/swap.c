@@ -14,7 +14,6 @@ void swap_init ()
 /* swap out page from frame to disk */
 void swap_out (struct frame_entry *fte)
 {
-	lock_acquire (&swap_lock);
 	int i;
 	void *src;
 	unsigned dst;
@@ -24,7 +23,6 @@ void swap_out (struct frame_entry *fte)
 
 	spte = spt_find_upage (fte->upage, fte->t);
 	src = spte->kpage;
-
 
 	/* Find empty slot of swap disk */
 	dst = (disk_sector_t) bitmap_scan (swap_alloc, 0, 1, false);
@@ -40,14 +38,12 @@ void swap_out (struct frame_entry *fte)
 
 	spte->swapped = true;
 	spte->swap_idx = dst;
-
-	lock_release (&swap_lock);
+	printf ("swap_out %x %x %u thread %d\n", fte->upage, fte->kpage, dst*8, spte->t->tid);
 }
 
 /* swap in page from disk to frame */
 void swap_in (struct spt_entry *spte, void *kpage)
 {
-	lock_acquire (&swap_lock);
 	int i;
 	unsigned src;
 	void *dst = kpage;
@@ -64,10 +60,8 @@ void swap_in (struct spt_entry *spte, void *kpage)
 
 	spte->swapped = false;
 	spte->kpage = dst;
-//	printf ("swap_in %x %x %u\n", spte->upage, spte->kpage, src*8);
 	frame_insert(spte->upage, spte->kpage-PHYS_BASE, spte->t);
   pagedir_get_page (spte->t->pagedir, spte->upage);
   pagedir_set_page (spte->t->pagedir, spte->upage, spte->kpage, true);
-
-	lock_release (&swap_lock);
+	printf ("swap_in %x %x %u\n", spte->upage, spte->kpage, src*8);
 }

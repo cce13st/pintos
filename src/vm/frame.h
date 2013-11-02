@@ -17,3 +17,4 @@ void frame_init (void);
 void frame_insert (void *, void *, struct thread *);
 void frame_remove (void *);
 void *frame_get (void);
+void frame_clear (struct thread *);

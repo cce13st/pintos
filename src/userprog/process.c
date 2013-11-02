@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -202,6 +203,9 @@ process_exit (void)
   uint32_t *pd;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+	file_close (curr->self);
+	curr->self = NULL;
+  sema_up (&curr->p_wait);
 
   while (list_size (&curr->fd_table) > 0)
 	{
@@ -210,9 +214,8 @@ process_exit (void)
 		file_close (fip->f);
 		free (fip);
   }
-	file_close (curr->self);
-	curr->self = NULL;
-  sema_up (&curr->p_wait);
+//	spt_clear (curr);		
+	frame_clear (curr);
   pd = curr->pagedir;
   if (pd != NULL) 
     {
@@ -545,7 +548,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-	//printf ("setup_stack\n");
+	printf ("setup_stack\n");
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -577,8 +580,9 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   result = (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
-
+//	lock_acquire (&frame_lock);
 	if (result)
 		spt_insert (upage, kpage, thread_current ());
+//	lock_release (&frame_lock);
 	return result;
 }
