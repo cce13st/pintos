@@ -44,7 +44,9 @@ void spt_insert (void *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte = init_entry (upage, kpage, t);
 	hash_insert (&t->spt_hash, &spte->hash_elem);
+	lock_acquire (&frame_lock);
 	frame_insert (upage, kpage-PHYS_BASE, t);
+	lock_release (&frame_lock);
 }	
 
 /* Remove supplement page table entry */
@@ -53,7 +55,9 @@ void spt_remove (void *upage, struct thread *t)
 	struct spt_entry *spte = spt_find_upage (upage, t);
 	hash_delete (&t->spt_hash, &spte->hash_elem);
 	free (spte);
+	lock_acquire (&frame_lock);
 	frame_remove (spte->kpage);
+	lock_release (&frame_lock);
 }
 
 /* Find the spt_entry */
@@ -75,6 +79,7 @@ struct spt_entry
  	return spte;
 }
 
+/*
 void spt_clear(struct thread *t)
 {
 	struct spt_entry *spte;
@@ -96,7 +101,7 @@ void spt_clear(struct thread *t)
 	printf("spte clear\n");
 
 }
-
+*/
 
 void stack_growth(void *upage, struct thread *t)
 {
@@ -108,4 +113,14 @@ void stack_growth(void *upage, struct thread *t)
   pagedir_get_page (t->pagedir, upage);
   pagedir_set_page (t->pagedir, upage, new, true);
 	spt_insert (upage, new, t);
+}
+
+void spt_destroy (struct hash_elem *elem, void *aux)
+{
+	struct spt_entry *spte = hash_entry (elem, struct spt_entry, hash_elem);
+	if (spte->swapped){
+		swap_clear (spte->swap_idx);
+		printf("hahahahhaha\n");
+	}
+	free (spte);
 }

@@ -7,7 +7,7 @@
 
 void swap_init ()
 {
-	swap_alloc = bitmap_create (1024);
+	swap_alloc = bitmap_create (256*3);
 	lock_init (&swap_lock);
 }
 
@@ -60,8 +60,14 @@ void swap_in (struct spt_entry *spte, void *kpage)
 
 	spte->swapped = false;
 	spte->kpage = dst;
+
 	frame_insert(spte->upage, spte->kpage-PHYS_BASE, spte->t);
-  pagedir_get_page (spte->t->pagedir, spte->upage);
+	pagedir_get_page (spte->t->pagedir, spte->upage);
   pagedir_set_page (spte->t->pagedir, spte->upage, spte->kpage, true);
 	printf ("swap_in %x %x %u\n", spte->upage, spte->kpage, src*8);
+}
+
+void swap_clear (unsigned swap_idx)
+{
+	bitmap_set (swap_alloc, swap_idx, false);
 }

@@ -20,11 +20,13 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 struct file_info * find_by_fd(int);
+struct lock syscall_lock;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+	lock_init (&syscall_lock);
 }
 
 bool

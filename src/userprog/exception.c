@@ -192,10 +192,10 @@ page_fault (struct intr_frame *f)
 
 	if (not_present)
 	{
-//		lock_acquire (&frame_lock);
+		lock_acquire (&frame_lock);
 		kpage = frame_get ();
 		swap_in (spte, kpage);
-//		lock_release (&frame_lock);
+		lock_release (&frame_lock);
 		return;
 	}
 
