@@ -120,7 +120,6 @@ void spt_destroy (struct hash_elem *elem, void *aux)
 	struct spt_entry *spte = hash_entry (elem, struct spt_entry, hash_elem);
 	if (spte->swapped){
 		swap_clear (spte->swap_idx);
-		printf("hahahahhaha\n");
 	}
 	free (spte);
 }

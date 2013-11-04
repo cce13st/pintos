@@ -38,7 +38,7 @@ void swap_out (struct frame_entry *fte)
 
 	spte->swapped = true;
 	spte->swap_idx = dst;
-	printf ("swap_out %x %x %u thread %d\n", fte->upage, fte->kpage, dst*8, spte->t->tid);
+//	printf ("swap_out %x %x %x thread %d\n", fte->upage, fte->kpage, src, spte->t->tid);
 }
 
 /* swap in page from disk to frame */
@@ -64,7 +64,7 @@ void swap_in (struct spt_entry *spte, void *kpage)
 	frame_insert(spte->upage, spte->kpage-PHYS_BASE, spte->t);
 	pagedir_get_page (spte->t->pagedir, spte->upage);
   pagedir_set_page (spte->t->pagedir, spte->upage, spte->kpage, true);
-	printf ("swap_in %x %x %u\n", spte->upage, spte->kpage, src*8);
+	//printf ("swap_in %x %x %u\n", spte->upage, dst, src*8);
 }
 
 void swap_clear (unsigned swap_idx)

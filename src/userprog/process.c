@@ -231,7 +231,6 @@ process_exit (void)
       curr->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-			printf ("asdfsafdsadf\n");
     }
 }
 
@@ -551,7 +550,6 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-	printf ("setup_stack\n");
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {

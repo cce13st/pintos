@@ -28,7 +28,7 @@ void frame_insert (void *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
-	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
+//	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 }
@@ -59,10 +59,14 @@ void *frame_get ()
 	kpage = (void *) bitmap_scan (frame_alloc, 0, 1, false);
 	if (kpage == BITMAP_ERROR){
 		kpage = eviction();
+		bitmap_set (frame_alloc, (unsigned)(kpage-0xc0000000)/PGSIZE, true);
 	}
 	else{
+//		printf ("frame_get kpage = %x\n", kpage);
 		kpage = (unsigned)kpage * PGSIZE;
-		kpage = (unsigned)kpage + 0xc028b000;
+		//printf ("%x %x\n", (unsigned)kpage, (unsigned)kpage + 0xc028b000);
+		//kpage = (unsigned)kpage + 0xc028b000;
+		kpage = (unsigned)kpage + 0xc0000000;
 	}
 
 	return kpage;
@@ -105,7 +109,7 @@ frame_clear (struct thread *t)
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->t == t)
 		{
-			printf ("frame_clear %x %x %d - %d\n", aux->upage, aux->kpage, aux->t->tid, (int)aux->kpage/PGSIZE);
+		//	printf ("frame_clear %x %x %d - %d\n", aux->upage, aux->kpage, aux->t->tid, (int)aux->kpage/PGSIZE);
 			bitmap_set (frame_alloc, (int)aux->kpage/PGSIZE, false);
 			garbage = target;
 			target = list_next (target);
@@ -117,5 +121,5 @@ frame_clear (struct thread *t)
 			target = list_next (target);
 	}
 	//lock_release (&frame_lock);
-	printf ("%d frame clear\n", cnt);
+	//printf ("%d frame clear\n", cnt);
 }
