@@ -204,9 +204,6 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
 
-	file_close (curr->self);
-	curr->self = NULL;
-  sema_up (&curr->p_wait);
   while (list_size (&curr->fd_table) > 0)
 	{
 	  ittr = list_pop_front (&curr->fd_table);
@@ -230,8 +227,11 @@ process_exit (void)
 			//hash_destroy (&curr->spt_hash, spt_destroy);
       curr->pagedir = NULL;
       pagedir_activate (NULL);
-      pagedir_destroy (pd);
+//      pagedir_destroy (pd);
     }
+	file_close (curr->self);
+	curr->self = NULL;
+  sema_up (&curr->p_wait);
 }
 
 /* Sets up the CPU for running user code in the current

@@ -65,6 +65,7 @@ void *frame_get ()
 //		printf ("frame_get kpage = %x\n", kpage);
 		kpage = (unsigned)kpage * PGSIZE;
 		//printf ("%x %x\n", (unsigned)kpage, (unsigned)kpage + 0xc028b000);
+		//TODO: remove below line
 		//kpage = (unsigned)kpage + 0xc028b000;
 		kpage = (unsigned)kpage + 0xc0000000;
 	}

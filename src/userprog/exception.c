@@ -154,15 +154,13 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 	growth = (f->esp-32 <= fault_addr);
-
+	//printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
    */
-	if (fault_addr == 4)
-		return;
 
-	//printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
+
 	struct spt_entry *spte;
 	void *kpage, *fault_frame = fault_addr;
 	fault_frame = (unsigned)fault_frame / PGSIZE;
@@ -198,6 +196,8 @@ page_fault (struct intr_frame *f)
 		lock_release (&frame_lock);
 		return;
 	}
+	if (write)
+		syscall_exit (-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
