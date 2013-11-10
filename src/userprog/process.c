@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -208,10 +209,16 @@ process_exit (void)
 	{
 	  ittr = list_pop_front (&curr->fd_table);
 		fip = list_entry (ittr, struct file_info, elem);
+		lock_acquire (&syscall_lock);
 		file_close (fip->f);
+		lock_release (&syscall_lock);
 		free (fip);
   }
   pd = curr->pagedir;
+	lock_acquire (&frame_lock);
+	frame_clear (curr);
+	hash_destroy (&curr->spt_hash, spt_destroy);
+	lock_release (&frame_lock);
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -221,10 +228,6 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-			lock_acquire (&frame_lock);
-			frame_clear (curr);
-			lock_release (&frame_lock);
-			//hash_destroy (&curr->spt_hash, spt_destroy);
       curr->pagedir = NULL;
       pagedir_activate (NULL);
 //      pagedir_destroy (pd);

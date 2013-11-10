@@ -1,6 +1,8 @@
-#include "frame.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 #include <bitmap.h>
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 
 void *eviction ();
 struct frame_entry *find_victim ();
@@ -44,6 +46,7 @@ void frame_remove (void *kpage)
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->kpage == kpage)
 		{
+			//memset (aux->kpage, 0, PGSIZE);
 			bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
 			list_remove (target);
 			free (aux);

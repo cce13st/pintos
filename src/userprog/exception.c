@@ -183,9 +183,6 @@ page_fault (struct intr_frame *f)
 		if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 			syscall_exit (-1);
 	
-		/* Protect code segment */
-		if (fault_addr < 0x8050000)
-			syscall_exit (-1);
 	}
 
 	if (not_present)

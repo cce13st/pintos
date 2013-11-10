@@ -20,7 +20,6 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 struct file_info * find_by_fd(int);
-struct lock syscall_lock;
 
 void
 syscall_init (void) 
@@ -125,11 +124,13 @@ syscall_exec (struct intr_frame *f)
   if (!validate_address (cmd_line))
     syscall_exit (-1);
 
+	lock_acquire (&syscall_lock);
   pid = process_execute (cmd_line);
   if (pid == TID_ERROR)
     f->eax = -1;
   else
     f->eax = pid;
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -151,9 +152,13 @@ syscall_write (struct intr_frame *f)
   memcpy (&fd, f->esp+4, sizeof (int));
   memcpy (&buffer, f->esp+8, sizeof (void *));
   memcpy (&size, f->esp+12, sizeof (unsigned));
+	
 	if (!validate_address (buffer))
 	  syscall_exit (-1);
+	
+	//lock_acquire (&syscall_lock);
 	if (! validate_fd (fd)){
+		//lock_release (&syscall_lock);
 	  f->eax = -1;
   	return;
 	}
@@ -174,6 +179,7 @@ syscall_write (struct intr_frame *f)
 		else 
 			f->eax = file_write(target_file, buffer, size);
 	}
+	//lock_release (&syscall_lock);
 }
 
 static void
@@ -186,12 +192,15 @@ syscall_create (struct intr_frame *f)
 	if (!validate_address (file))
 	  syscall_exit (-1);
 	
+	lock_acquire (&syscall_lock);
   if (file == NULL){
+		lock_release (&syscall_lock);
 	  syscall_exit (-1);
 		f->eax = false;
   }
 	else
 		f->eax = filesys_create(file, initial_size);
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -200,11 +209,13 @@ syscall_remove (struct intr_frame *f)
 	const char *file;
 	memcpy (&file, f->esp+4, sizeof (char *));
 
+	lock_acquire (&syscall_lock);
 	if (!file)
 		//exit???
 		f->eax = false;
 	else 
 		f->eax = filesys_remove(file);
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -213,9 +224,11 @@ syscall_open (struct intr_frame *f)
 	const char *file;
 	memcpy (&file, f->esp+4, sizeof (char *));
 
-  if (!validate_address (file))
+	lock_acquire (&syscall_lock);
+  if (!validate_address (file)){
+		lock_release (&syscall_lock);
 	  syscall_exit (-1);
-
+	}
 	struct thread *t;
 	struct file *target_file;
 	struct file_info *fip;
@@ -224,6 +237,7 @@ syscall_open (struct intr_frame *f)
 	
 	if (target_file == NULL){
 		f->eax = -1;
+		lock_release (&syscall_lock);
 		return;
 	}
 	fip = malloc (sizeof (struct file_info));
@@ -231,6 +245,7 @@ syscall_open (struct intr_frame *f)
 	fip->f = target_file;
 	list_push_back (&t->fd_table, &fip->elem);
 	f->eax = t->cur_fd++;
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -285,7 +300,6 @@ syscall_read (struct intr_frame *f) {
 		else
 			f->eax = file_read(target_file, buffer, size);
 	}
-
 }
 
 static void
@@ -327,8 +341,11 @@ syscall_close(struct intr_frame *f) {
 	int fd;
 	memcpy(&fd, f->esp+4, sizeof(int));
 
-  if (!validate_fd (fd))
+	lock_acquire (&syscall_lock);
+  if (!validate_fd (fd)){
+		lock_release (&syscall_lock);
 	  syscall_exit (-1);
+	}
 	
 	struct thread *t;
 	struct file *target_file;
@@ -339,6 +356,7 @@ syscall_close(struct intr_frame *f) {
 	list_remove (&fip->elem);
 	file_close(target_file);
 	free(fip);
+	lock_release (&syscall_lock);
 }
 
 struct file_info*
