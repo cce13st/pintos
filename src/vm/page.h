@@ -12,7 +12,6 @@ void stack_growth (void *, struct thread *);
 
 struct spt_entry
 {
-	bool pinned;
 	bool swapped;
 	void *upage;
 	uint32_t swap_idx;

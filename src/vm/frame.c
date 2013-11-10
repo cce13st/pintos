@@ -62,11 +62,7 @@ void *frame_get ()
 		bitmap_set (frame_alloc, (unsigned)(kpage-0xc0000000)/PGSIZE, true);
 	}
 	else{
-//		printf ("frame_get kpage = %x\n", kpage);
 		kpage = (unsigned)kpage * PGSIZE;
-		//printf ("%x %x\n", (unsigned)kpage, (unsigned)kpage + 0xc028b000);
-		//TODO: remove below line
-		//kpage = (unsigned)kpage + 0xc028b000;
 		kpage = (unsigned)kpage + 0xc0000000;
 	}
 
@@ -101,8 +97,6 @@ find_victim ()
 void
 frame_clear (struct thread *t)
 {
-	//lock_acquire (&frame_lock);
-	int cnt = 0;
 	struct frame_entry *aux;
 	struct list_elem *target, *garbage;
 	for (target = list_begin (&frame_list); target != list_end (&frame_list);)
@@ -116,11 +110,8 @@ frame_clear (struct thread *t)
 			target = list_next (target);
 			list_remove (garbage);
 			free (aux);
-			cnt++;
 		}
 		else
 			target = list_next (target);
 	}
-	//lock_release (&frame_lock);
-	//printf ("%d frame clear\n", cnt);
 }

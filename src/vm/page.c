@@ -24,7 +24,6 @@ static struct spt_entry
 {
 	struct spt_entry *spte;
 	spte = (struct spt_entry *)malloc (sizeof (struct spt_entry));
-	spte->pinned = false;
 	spte->swapped = false;
 	spte->upage = upage;
 	spte->kpage = kpage;
@@ -105,7 +104,6 @@ void spt_clear(struct thread *t)
 
 void stack_growth(void *upage, struct thread *t)
 {
-	//Request one more page
 	struct spt_entry *spte;
 	void *new;
 
