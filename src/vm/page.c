@@ -43,9 +43,7 @@ void spt_insert (void *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte = init_entry (upage, kpage, t);
 	hash_insert (&t->spt_hash, &spte->hash_elem);
-	lock_acquire (&frame_lock);
 	frame_insert (upage, kpage-PHYS_BASE, t);
-	lock_release (&frame_lock);
 }	
 
 /* Remove supplement page table entry */

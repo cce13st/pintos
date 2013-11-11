@@ -119,11 +119,8 @@ void *
 palloc_get_page (enum palloc_flags flags) 
 {
 	void *result = palloc_get_multiple (flags, 1);
-	if (!result){
-		lock_acquire (&frame_lock);
+	if (!result)
 		result = frame_get ();
-		lock_release (&frame_lock);
-	}
 
 	return result;
 }

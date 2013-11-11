@@ -34,12 +34,13 @@ void swap_out (struct frame_entry *fte)
 	for (i=0; i<8; i++) 
 		disk_write (swap_disk, dst*8 + i, src+512*i);
 
-	//memset (src, 0, PGSIZE);
 	bitmap_set (swap_alloc, dst, true);
-	lock_release (&swap_lock);
+	pagedir_clear_page (fte->t->pagedir, fte->upage);
+	frame_remove (fte->kpage);
 
 	spte->swapped = true;
 	spte->swap_idx = dst;
+	lock_release (&swap_lock);
 //	printf ("swap_out %x %x %x thread %d\n", fte->upage, fte->kpage, src, spte->t->tid);
 }
 

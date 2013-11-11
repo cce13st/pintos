@@ -46,7 +46,6 @@ void frame_remove (void *kpage)
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->kpage == kpage)
 		{
-			//memset (aux->kpage, 0, PGSIZE);
 			bitmap_set (frame_alloc, (int)kpage/PGSIZE, false);
 			list_remove (target);
 			free (aux);
@@ -79,8 +78,6 @@ eviction ()
 	void *empty_page;
 	empty_page = fte->kpage;
 	swap_out (fte);
-	pagedir_clear_page (fte->t->pagedir, fte->upage);
-	frame_remove (fte->kpage);
 
 	empty_page = (unsigned)empty_page + 0xc0000000;
 	return empty_page;
