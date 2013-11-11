@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
@@ -120,9 +121,7 @@ palloc_get_page (enum palloc_flags flags)
 {
 	void *result = palloc_get_multiple (flags, 1);
 	if (!result){
-		lock_acquire (&frame_lock);
 		result = frame_get ();
-		lock_release (&frame_lock);
 	}
 
 	return result;

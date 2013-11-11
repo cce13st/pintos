@@ -20,6 +20,7 @@
 #include "threads/vaddr.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -215,10 +216,8 @@ process_exit (void)
 		free (fip);
   }
   pd = curr->pagedir;
-	lock_acquire (&frame_lock);
-	frame_clear (curr);
 	hash_destroy (&curr->spt_hash, spt_destroy);
-	lock_release (&frame_lock);
+	frame_clear (curr);
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -230,7 +229,7 @@ process_exit (void)
          that's been freed (and cleared). */
       curr->pagedir = NULL;
       pagedir_activate (NULL);
-//      pagedir_destroy (pd);
+      //pagedir_destroy (pd);
     }
 	file_close (curr->self);
 	curr->self = NULL;

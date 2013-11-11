@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -187,10 +188,10 @@ page_fault (struct intr_frame *f)
 
 	if (not_present)
 	{
-		lock_acquire (&frame_lock);
 		kpage = frame_get ();
+		lock_acquire (&swap_lock);
 		swap_in (spte, kpage);
-		lock_release (&frame_lock);
+		lock_release (&swap_lock);
 		return;
 	}
 	if (write)

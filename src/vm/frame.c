@@ -1,5 +1,6 @@
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/swap.h"
 #include <bitmap.h>
 #include "threads/vaddr.h"
 #include "threads/thread.h"
@@ -30,9 +31,11 @@ void frame_insert (void *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
-//	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
+	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
+	lock_acquire (&frame_lock);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
+	lock_release (&frame_lock);
 }
 
 /* Remove entry from frame table */
@@ -41,6 +44,7 @@ void frame_remove (void *kpage)
 	struct frame_entry *aux;
 	struct list_elem *target;
 
+	lock_acquire (&frame_lock);
 	for (target = list_begin (&frame_list); target != list_end (&frame_list); target = list_next (target))
 	{
 		aux = list_entry (target, struct frame_entry, list_elem);
@@ -53,16 +57,21 @@ void frame_remove (void *kpage)
 			break;
 		}
 	}
+	lock_release (&frame_lock);
 }
 
 /* Find free frame */
 void *frame_get ()
 {
 	void *kpage;
+	lock_acquire (&frame_lock);
 	kpage = (void *) bitmap_scan (frame_alloc, 0, 1, false);
+	lock_release (&frame_lock);
 	if (kpage == BITMAP_ERROR){
 		kpage = eviction();
+		lock_acquire (&frame_lock);
 		bitmap_set (frame_alloc, (unsigned)(kpage-0xc0000000)/PGSIZE, true);
+		lock_release (&frame_lock);
 	}
 	else{
 		kpage = (unsigned)kpage * PGSIZE;
@@ -78,9 +87,9 @@ eviction ()
 	struct frame_entry *fte = find_victim ();
 	void *empty_page;
 	empty_page = fte->kpage;
+	lock_acquire (&swap_lock);
 	swap_out (fte);
-	pagedir_clear_page (fte->t->pagedir, fte->upage);
-	frame_remove (fte->kpage);
+	lock_release (&swap_lock);
 
 	empty_page = (unsigned)empty_page + 0xc0000000;
 	return empty_page;
@@ -102,7 +111,8 @@ frame_clear (struct thread *t)
 {
 	struct frame_entry *aux;
 	struct list_elem *target, *garbage;
-	for (target = list_begin (&frame_list); target != list_end (&frame_list);)
+	lock_acquire (&frame_lock);
+	for (target = list_begin (&frame_list); target != list_tail (&frame_list);)
 	{
 		aux = list_entry (target, struct frame_entry, list_elem);
 		if (aux->t == t)
@@ -117,4 +127,5 @@ frame_clear (struct thread *t)
 		else
 			target = list_next (target);
 	}
+	lock_release (&frame_lock);
 }
