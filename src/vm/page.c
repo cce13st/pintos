@@ -43,7 +43,9 @@ void spt_insert (void *upage, void *kpage, struct thread *t)
 {
 	struct spt_entry *spte = init_entry (upage, kpage, t);
 	hash_insert (&t->spt_hash, &spte->hash_elem);
+	lock_acquire (&frame_lock);
 	frame_insert (upage, kpage-PHYS_BASE, t);
+	lock_release (&frame_lock);
 }	
 
 /* Remove supplement page table entry */
@@ -51,8 +53,10 @@ void spt_remove (void *upage, struct thread *t)
 {
 	struct spt_entry *spte = spt_find_upage (upage, t);
 	hash_delete (&t->spt_hash, &spte->hash_elem);
-	frame_remove (spte->kpage);
 	free (spte);
+	lock_acquire (&frame_lock);
+	frame_remove (spte->kpage);
+	lock_release (&frame_lock);
 }
 
 /* Find the spt_entry */
