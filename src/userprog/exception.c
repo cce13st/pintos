@@ -168,7 +168,7 @@ page_fault (struct intr_frame *f)
 	void *kpage, *fault_frame = fault_addr;
 	fault_frame = (unsigned)fault_frame / PGSIZE;
 	fault_frame = (unsigned)fault_frame * PGSIZE;
-	
+
 	/* Find page from swap table */
 	spte = spt_find_upage (fault_frame, t);
 
@@ -189,7 +189,6 @@ page_fault (struct intr_frame *f)
 
 	if (not_present && spte->lazy == true)
 	{
-		printf ("lazy load!\n");
 		/* Lazy Load */
 		lock_acquire (&frame_lock);
 
@@ -216,7 +215,9 @@ page_fault (struct intr_frame *f)
 
     pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
 		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
-		printf ("%x %x\n", spte->upage, kpage);
+		printf ("%x %x zero:%d\n", spte->upage, kpage, spte->zero);
+
+		hex_dump ((int)kpage, kpage, PGSIZE, true);
 
 		spte->lazy = false;
 		spte->kpage = kpage;

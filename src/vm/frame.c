@@ -30,7 +30,7 @@ void frame_insert (void *upage, void *kpage, struct thread *t)
 	fte->kpage = kpage;
 	fte->t = t;
 
-//	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
+	printf ("frame_insert %x %x %d\n", upage, kpage, t->tid);
 	bitmap_set (frame_alloc, ((int)kpage)/PGSIZE, true);
 	list_push_back (&frame_list, &fte->list_elem);
 }
