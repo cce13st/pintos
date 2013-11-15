@@ -508,6 +508,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+	unsigned load_offset = ofs;
+
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -517,32 +519,42 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-			lock_acquire (&frame_lock);
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+			if (page_zero_bytes == PGSIZE)
+				spt_lazy (upage, true, file, load_offset, writable, thread_current ());
+			else if (page_read_bytes == PGSIZE)
+				spt_lazy (upage, false, file, load_offset, writable, thread_current ());
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+			else
+			{
+				lock_acquire (&frame_lock);
+				/* Get a page of memory */
+				uint8_t *kpage = palloc_get_page (PAL_USER);
+				if (kpage == NULL)
+					return false;
+	
+				/* Load this page */
+				if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+				{
+					palloc_free_page (kpage);
+					return false;
+				}
+				memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-			lock_release (&frame_lock);
+				/* Add the page to the process's address space. */
+				if (!install_page (upage, kpage, writable))
+				{
+					palloc_free_page (kpage);
+					return false;
+				}
+
+				lock_release (&frame_lock);
+			}
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+			load_offset += PGSIZE;
     }
   return true;
 }
@@ -556,16 +568,17 @@ setup_stack (void **esp)
   bool success = false;
 
 	lock_acquire (&frame_lock);
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-    }
+	kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	if (kpage != NULL)
+	{
+		success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+		if (success)
+			*esp = PHYS_BASE;
+		else
+			palloc_free_page (kpage);
+	}
 	lock_release (&frame_lock);
+
   return success;
 }
 
@@ -589,6 +602,6 @@ install_page (void *upage, void *kpage, bool writable)
   result = (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 	if (result)
-		spt_insert (upage, kpage, thread_current ());
+		spt_insert (upage, kpage, writable, thread_current ());
 	return result;
 }
