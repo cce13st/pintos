@@ -537,6 +537,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
+
+			hex_dump ((int) kpage, kpage, PGSIZE, true);
 			lock_release (&frame_lock);
 
       /* Advance. */

@@ -122,7 +122,10 @@ struct thread
 
 		/* Stack limit */
 		uint8_t *stack_limit;
-  };
+  
+		/* Memory Mapping files */
+		struct list mmap_table;
+	};
 
 struct thread_info
   {
@@ -138,6 +141,16 @@ struct file_info
   {
 	  int fd;
 		struct file *f;
+		struct list_elem elem;
+
+		bool mapped;
+	};
+
+struct mmap_info 
+	{
+		mapid_t mapid;			
+		struct file_info mmaped_file; /*file information about memory mapped file */
+		void *addr;
 		struct list_elem elem;
 	};
 

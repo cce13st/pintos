@@ -19,6 +19,9 @@ static void syscall_seek (struct intr_frame *);
 static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
+static void syscall_mmap (struct intr_frame *);
+static void syscall_munmap (struct intr_frame *);
+
 struct file_info * find_by_fd(int);
 
 void
@@ -94,7 +97,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 		case SYS_CLOSE:
 			syscall_close (f);
 			break;
-  }
+  	case SYS_MMAP:
+			syscall_mmap (f);
+			break;
+		case SYS_MUNMAP:
+			syscall_munmap (f);
+			break;
+	}
 }
 
 static void
@@ -243,6 +252,7 @@ syscall_open (struct intr_frame *f)
 	fip = malloc (sizeof (struct file_info));
 	fip->fd = t->cur_fd; 
 	fip->f = target_file;
+	fip->mapped = false;
 	list_push_back (&t->fd_table, &fip->elem);
 	f->eax = t->cur_fd++;
 	lock_release (&syscall_lock);
@@ -254,10 +264,8 @@ syscall_filesize (struct intr_frame *f)
 	int fd;
 	memcpy (&fd, f->esp+4, sizeof(int));
 	
-	struct thread *t;
 	struct file *target_file;
 
-	t = thread_current();
 	target_file = find_by_fd(fd)->f;
 	if (!target_file)
 		f->eax = -1;
@@ -280,9 +288,7 @@ syscall_read (struct intr_frame *f) {
 	  f->eax = -1;
 		return;
   }
-	struct thread *t;
 	int i;
-	t = thread_current();
 
 	if (fd ==0) {
 		for (i=0; i<size; i++) {
@@ -310,9 +316,7 @@ syscall_seek (struct intr_frame *f)
 	memcpy(&fd, f->esp+4, sizeof(int));
 	memcpy(&position, f->esp+8, sizeof(unsigned));
 
-	struct thread *t;
 	struct file *target_file;
-	t = thread_current();
 	target_file = find_by_fd(fd)->f;
 
 	if (target_file)
@@ -325,9 +329,7 @@ syscall_tell (struct intr_frame *f)
 {
 	int fd;
 	memcpy(&fd, f->esp+4, sizeof(int));
-	struct thread *t;
 	struct file *target_file;
-	t = thread_current();
 	target_file = find_by_fd(fd)->f;
 	if (!target_file)
 		f->eax = -1;
@@ -347,10 +349,8 @@ syscall_close(struct intr_frame *f) {
 	  syscall_exit (-1);
 	}
 	
-	struct thread *t;
 	struct file *target_file;
 	struct file_info *fip;
-	t = thread_current();
 	fip = find_by_fd(fd);
 	target_file = fip->f;
 	list_remove (&fip->elem);
@@ -378,3 +378,91 @@ find_by_fd (int fd)
 
 	return NULL;
 }
+
+static void
+syscall_mmap (struct intr_frame *f)
+{
+	struct file_info *fip;
+
+	int fd, fsize, pgsize;
+	void *addr;
+	memcpy (&fd, f->esp+4, sizeof(int));
+	memcpy (&addr, f->esp+8, sizeof(void *));
+
+	lock_acquire (&syscall_lock);
+	
+	if (!validate_fd (fd)) {
+		lock_release (&syscall_lock);
+		syscall_exit (-1);
+	}
+	if (!validate_address (addr)) {
+		lock_release (&syscall_lock);
+		syscall_exit (-1);
+	}
+	
+	/*check whether fd is 0 or 1 */
+	if (fd ==0 || fd ==1) {
+		f->eax = -1;
+		lock_release (&syscall_lock);
+		return;
+	}
+
+	/*get filesize from the file as fd */
+	fip = find_by_fd (fd);
+	fsize = file_length (fip->f);
+
+	if (fsize == 0)	{
+		f->eax = -1;
+		lock_release (&syscall_lock);
+		return;
+	}
+
+	/*check whether addr is page-aligned or not. And also addr !=0 */
+	if ((unsigned) addr % PGSIZE != 0 || addr == 0) {
+		f->eax = -1;
+		lock_release (&syscall_lock);
+		return;
+	}
+
+	/*get the mmap's PGSIZE and check whether overlapped or not*/
+	uint32_t *pd;
+	struct thread *curr = thread_current(); 
+	void *dst;
+	int cnt = 0;
+	pd = curr->pagedir;
+	for (dst = addr; (dst - addr) < fsize; dst += PGSIZE) {
+		if (lookup_page (pd,dst,false ) != NULL) {
+			f->eax = -1;
+			lock_release (&syscall_lock);
+			return;
+		}
+		cnt++;
+	}
+
+	//TODO 
+	/*update or make the mmap table and return mmap_id*/
+	//mmap_table mmap_id
+ 	struct mmap_info *mip;
+	//mip->mapid = mapid;		I don't know...
+	mip->addr = addr;
+	void *a;
+	a = palloc_get_multiple (PAL_USER, cnt);
+	pagedir_set_page (pd, addr, a,true);
+	list_push_back (mmap_table, mip);
+	
+	f->eax = mapid;
+	lock_release (&syscall_lock);
+	return;
+	
+}
+
+static void
+syscall_munmap (struct intr_frame *f)
+{
+
+
+}
+
+
+
+
