@@ -123,8 +123,6 @@ struct thread
 		/* Stack limit */
 		uint8_t *stack_limit;
   
-		/* Memory Mapping files */
-		struct list mmap_table;
 	};
 
 struct thread_info
@@ -146,13 +144,14 @@ struct file_info
 		bool mapped;
 	};
 
-struct mmap_info 
+/*struct mmap_info 
 	{
 		mapid_t mapid;			
-		struct file_info mmaped_file; /*file information about memory mapped file */
+		struct file_info mmaped_file;  //file information about memory mapped file 
 		void *addr;
 		struct list_elem elem;
 	};
+*/
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

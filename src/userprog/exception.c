@@ -215,9 +215,9 @@ page_fault (struct intr_frame *f)
 
     pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
 		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
-		printf ("%x %x zero:%d\n", spte->upage, kpage, spte->zero);
+		//printf ("%x %x zero:%d\n", spte->upage, kpage, spte->zero);
 
-		hex_dump ((int)kpage, kpage, PGSIZE, true);
+		//hex_dump ((int)kpage, kpage, PGSIZE, true);
 
 		spte->lazy = false;
 		spte->kpage = kpage;

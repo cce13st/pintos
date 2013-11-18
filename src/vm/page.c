@@ -101,7 +101,7 @@ void spt_destroy (struct hash_elem *elem, void *aux)
 	free (spte);
 }
 
-void spt_lazy (void *upage, bool zero, struct file *file, off_t offs, bool writable, struct thread *t)
+void spt_lazy (void *upage, bool zero, struct file *file, off_t offs, bool writable, struct thread *t, mapid_t mapid)
 {
 	struct spt_entry *spte;
 	spte = (struct spt_entry *)malloc (sizeof (struct spt_entry));
@@ -110,10 +110,14 @@ void spt_lazy (void *upage, bool zero, struct file *file, off_t offs, bool writa
 	spte->kpage = NULL;
 	spte->t = t;
 	
-	spte->lazy = true;
+	if (mapid = -1)
+		spte->lazy = true;
+	else 
+		spte->lazy = false;
 	spte->zero = zero;
 	spte->writable = writable;
 	spte->file = file;
 	spte->offset = offs;
+	spte->mapid = mapid;
 	hash_insert (&t->spt_hash, &spte->hash_elem);
 }

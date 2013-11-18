@@ -2,6 +2,7 @@
 #define PAGE_H
 #include "threads/synch.h"
 #include "filesys/off_t.h"
+#include "lib/user/syscall.h"
 #include <hash.h>
 
 void spt_init (struct thread *);
@@ -25,6 +26,7 @@ struct spt_entry
 	bool writable;
 	off_t offset;
 	struct file *file;
+	mapid_t mapid;
 
 	struct hash_elem hash_elem;
 };

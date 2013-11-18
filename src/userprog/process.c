@@ -519,11 +519,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-			printf ("load segment:%x\n", upage);
+			//printf ("load segment:%x\n", upage);
 			if (page_zero_bytes == PGSIZE)
-				spt_lazy (upage, true, file, load_offset, writable, thread_current ());
+				spt_lazy (upage, true, file, load_offset, writable, thread_current (),-1);
 			else if (page_read_bytes == PGSIZE)
-				spt_lazy (upage, false, file, load_offset, writable, thread_current ());
+				spt_lazy (upage, false, file, load_offset, writable, thread_current (),-1);
 
 			else
 			{
@@ -548,7 +548,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 					return false;
 				}
 
-				printf ("loaded %x %x\n", upage, kpage);
+				//printf ("loaded %x %x\n", upage, kpage);
 				lock_release (&frame_lock);
 			}
 

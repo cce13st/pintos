@@ -4,6 +4,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
+#include "lib/user/syscall.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt (struct intr_frame *);
@@ -23,6 +26,8 @@ static void syscall_mmap (struct intr_frame *);
 static void syscall_munmap (struct intr_frame *);
 
 struct file_info * find_by_fd(int);
+mapid_t mapid = 0;
+
 
 void
 syscall_init (void) 
@@ -230,6 +235,8 @@ syscall_remove (struct intr_frame *f)
 static void
 syscall_open (struct intr_frame *f)
 {
+	printf("start open\n");
+	
 	const char *file;
 	memcpy (&file, f->esp+4, sizeof (char *));
 
@@ -256,6 +263,8 @@ syscall_open (struct intr_frame *f)
 	list_push_back (&t->fd_table, &fip->elem);
 	f->eax = t->cur_fd++;
 	lock_release (&syscall_lock);
+
+	printf("end open\n");
 }
 
 static void
@@ -382,6 +391,7 @@ find_by_fd (int fd)
 static void
 syscall_mmap (struct intr_frame *f)
 {
+	printf("hahaha\n");
 	struct file_info *fip;
 
 	int fd, fsize, pgsize;
@@ -409,7 +419,8 @@ syscall_mmap (struct intr_frame *f)
 
 	/*get filesize from the file as fd */
 	fip = find_by_fd (fd);
-	fsize = file_length (fip->f);
+	struct file *file = file_reopen(fip->f);
+	fsize = file_length (file);
 
 	if (fsize == 0)	{
 		f->eax = -1;
@@ -429,9 +440,11 @@ syscall_mmap (struct intr_frame *f)
 	struct thread *curr = thread_current(); 
 	void *dst;
 	int cnt = 0;
+	
 	pd = curr->pagedir;
 	for (dst = addr; (dst - addr) < fsize; dst += PGSIZE) {
-		if (lookup_page (pd,dst,false ) != NULL) {
+		if (pagedir_get_page (pd,dst) != NULL) {
+			file_close(file);
 			f->eax = -1;
 			lock_release (&syscall_lock);
 			return;
@@ -439,18 +452,18 @@ syscall_mmap (struct intr_frame *f)
 		cnt++;
 	}
 
-	//TODO 
-	/*update or make the mmap table and return mmap_id*/
-	//mmap_table mmap_id
- 	struct mmap_info *mip;
-	//mip->mapid = mapid;		I don't know...
-	mip->addr = addr;
-	void *a;
-	a = palloc_get_multiple (PAL_USER, cnt);
-	pagedir_set_page (pd, addr, a,true);
-	list_push_back (mmap_table, mip);
+	int ittr = cnt;
+	off_t read_offs = 0;
+	dst = addr;
+	while (ittr>1) {
+		spt_lazy (dst, false, file, read_offs, true, curr, mapid);	
+		read_offs += PGSIZE;
+		dst += PGSIZE;
+		ittr--;
+	}
+	spt_lazy (dst, false, file, (unsigned) fsize - (cnt-1)*PGSIZE, true, curr, mapid);
 	
-	f->eax = mapid;
+	f->eax = mapid++;
 	lock_release (&syscall_lock);
 	return;
 	
@@ -459,7 +472,7 @@ syscall_mmap (struct intr_frame *f)
 static void
 syscall_munmap (struct intr_frame *f)
 {
-
+return;
 
 }
 
