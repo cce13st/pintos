@@ -191,13 +191,10 @@ page_fault (struct intr_frame *f)
 	{
 		/* Lazy Load */
 		lock_acquire (&frame_lock);
-
-		/* Get a page of memory */
 		uint8_t *kpage = palloc_get_page (PAL_USER);
 
 		if (spte->zero)
 			memset (kpage, 0, PGSIZE);
-
 		else
 		{
 			off_t pos = file_tell (spte->file);
@@ -215,9 +212,6 @@ page_fault (struct intr_frame *f)
 
     pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
 		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
-		printf ("%x %x zero:%d\n", spte->upage, kpage, spte->zero);
-
-		hex_dump ((int)kpage, kpage, PGSIZE, true);
 
 		spte->lazy = false;
 		spte->kpage = kpage;
