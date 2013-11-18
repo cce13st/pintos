@@ -1,12 +1,16 @@
 #include "userprog/exception.h"
+#include "userprog/process.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include "vm/frame.h"
+#include "vm/page.h"
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/palloc.h"
 #include "userprog/syscall.h"
+#include "userprog/pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -160,15 +164,14 @@ page_fault (struct intr_frame *f)
    * a pointer to kernel virtual address space.
    */
 
-
 	struct spt_entry *spte;
 	void *kpage, *fault_frame = fault_addr;
 	fault_frame = (unsigned)fault_frame / PGSIZE;
 	fault_frame = (unsigned)fault_frame * PGSIZE;
-	
+
 	/* Find page from swap table */
 	spte = spt_find_upage (fault_frame, t);
-	
+
 	/* Stack growth */
 	if (spte == NULL){
 		if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
@@ -182,10 +185,46 @@ page_fault (struct intr_frame *f)
 		
 		if ((is_kernel_vaddr(fault_addr) && user) || not_present)
 			syscall_exit (-1);
-	
 	}
 
-	if (not_present)
+	if (not_present && spte->lazy == true)
+	{
+		/* Lazy Load */
+		lock_acquire (&frame_lock);
+
+		/* Get a page of memory */
+		uint8_t *kpage = palloc_get_page (PAL_USER);
+
+		if (spte->zero)
+			memset (kpage, 0, PGSIZE);
+
+		else
+		{
+			off_t pos = file_tell (spte->file);
+
+			/* Load this page from disk by offset */
+			if (file_read_at (spte->file, kpage, PGSIZE, spte->offset) != PGSIZE)
+			{
+				file_seek (spte->file, pos);
+				palloc_free_page (kpage);
+				lock_release (&frame_lock);
+				return false;
+			}
+			file_seek (spte->file, pos);
+		}
+
+    pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
+		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
+		printf ("%x %x zero:%d\n", spte->upage, kpage, spte->zero);
+
+		hex_dump ((int)kpage, kpage, PGSIZE, true);
+
+		spte->lazy = false;
+		spte->kpage = kpage;
+		lock_release (&frame_lock);
+		return;
+	}
+	else if (not_present)
 	{
 		lock_acquire (&frame_lock);
 		kpage = frame_get ();
