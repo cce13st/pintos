@@ -53,7 +53,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (t_name, PRI_DEFAULT, start_process, fn_copy);
   sema_down (&thread_current ()->load_wait); 
-  
+ 
 	if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   if (thread_current ()->load_fail){
@@ -519,10 +519,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-			printf ("load segment:%x\n", upage);
-			if (page_zero_bytes == PGSIZE)
+			//printf ("load segment:%x\n", upage);
+			if (zero_bytes == PGSIZE)
 				spt_lazy (upage, true, file, load_offset, writable, thread_current ());
-			else if (page_read_bytes == PGSIZE)
+			else if (read_bytes == PGSIZE)
 				spt_lazy (upage, false, file, load_offset, writable, thread_current ());
 
 			else
@@ -548,7 +548,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 					return false;
 				}
 
-				printf ("loaded %x %x\n", upage, kpage);
+				//printf ("loaded %x %x\n", upage, kpage);
 				lock_release (&frame_lock);
 			}
 
