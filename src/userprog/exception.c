@@ -175,11 +175,13 @@ page_fault (struct intr_frame *f)
 	/* Stack growth */
 	if (spte == NULL){
 		if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
+			lock_acquire (&frame_lock);
 			uint8_t *pgalloc, *upage;
 			upage = (unsigned)fault_addr / PGSIZE;
 			upage = (unsigned)upage * PGSIZE;
 			for (pgalloc = t->stack_limit - PGSIZE; pgalloc >= upage; pgalloc -= PGSIZE)
 				stack_growth(pgalloc, t);
+			lock_release (&frame_lock);
 			return;
 		}
 		
@@ -198,7 +200,7 @@ page_fault (struct intr_frame *f)
 		else
 		{
 			off_t pos = file_tell (spte->file);
-
+			
 			/* Load this page from disk by offset */
 			if (file_read_at (spte->file, kpage, PGSIZE, spte->offset) != PGSIZE)
 			{
@@ -212,6 +214,7 @@ page_fault (struct intr_frame *f)
 
     pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
 		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
+		//hex_dump ((int)kpage, kpage, PGSIZE, true);
 
 		spte->lazy = false;
 		spte->kpage = kpage;
