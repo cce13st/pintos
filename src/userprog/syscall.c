@@ -449,7 +449,6 @@ syscall_mmap (struct intr_frame *f)
 	/*check whether addr is page-aligned or not. And also addr !=0 */
 	if ( pg_round_down(addr) != addr || addr == 0) {
 		f->eax = -1;
-	//	printf("dead\n");
 		lock_release (&syscall_lock);
 		return;
 	}
@@ -460,28 +459,24 @@ syscall_mmap (struct intr_frame *f)
 		return;
 	}
 
-	//lock_acquire (&mmap_lock);
 	struct mmap_info *mip = (struct mmap_info *) malloc (sizeof (struct mmap_info));
 	mip->mapid = t->cur_mapid++;
 	mip->addr = addr;
 	mip->mmaped_file->f = target_file;
 
 	void *dst;
-	off_t ofs;
+	off_t ofs = 0;
 
 	for (dst = addr; (dst-addr) < fsize; dst += PGSIZE) {
-		ofs = file_tell (target_file) + (int)dst - (int)addr;
 		spt_lazy (dst, false, target_file, ofs,true, t);
-		
-		printf("mmap : %x size : %d\n", dst,fsize);
+		ofs += PGSIZE;
 	}
 
 	list_push_back (&t->mmap_table, &mip->elem);
 	mip->mmaped_file->mapped = true;
 
-	printf("mmap finish \n");
 	f->eax = mip->mapid;
-	//lock_release ( &mmap_lock);
+	printf ("%x %x\n", target_file, addr);	
 	lock_release (&syscall_lock);
 	return;
 
