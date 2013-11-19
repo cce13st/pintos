@@ -101,7 +101,7 @@ void spt_destroy (struct hash_elem *elem, void *aux)
 	free (spte);
 }
 
-void spt_lazy (void *upage, bool zero, struct file *file, off_t offs, bool writable, struct thread *t)
+void spt_lazy (void *upage, bool zero, struct file *file, off_t offs,  bool writable, struct thread *t)
 {
 	struct spt_entry *spte;
 	spte = (struct spt_entry *)malloc (sizeof (struct spt_entry));

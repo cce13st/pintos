@@ -125,6 +125,7 @@ struct thread
   
 		/* Memory Mapping files */
 		struct list mmap_table;
+		int cur_mapid;
 	};
 
 struct thread_info
@@ -148,8 +149,8 @@ struct file_info
 
 struct mmap_info 
 	{
-		mapid_t mapid;			
-		struct file_info mmaped_file; /*file information about memory mapped file */
+		int mapid;			
+		struct file_info *mmaped_file; /*file information about memory mapped file */
 		void *addr;
 		struct list_elem elem;
 	};

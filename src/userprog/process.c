@@ -200,10 +200,22 @@ process_exit (void)
 {
   struct thread *curr = thread_current ();
   struct file_info *fip;
-  struct list_elem *ittr;
+  struct mmap_info *mip;
+	struct list_elem *ittr;
   uint32_t *pd;
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+
+	while (list_size (&curr->mmap_table) > 0)
+	{
+		ittr = list_pop_front (&curr->mmap_table);
+		mip = list_entry (ittr, struct mmap_info, elem);
+		if (mip->mapid != -1) 
+			syscall_munmap(mip->mapid);
+		list_remove (&mip->elem);
+		free(mip);
+	}
+
 
   while (list_size (&curr->fd_table) > 0)
 	{

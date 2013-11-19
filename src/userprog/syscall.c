@@ -4,6 +4,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include "filesys/off_t.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt (struct intr_frame *);
@@ -20,7 +23,6 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 static void syscall_mmap (struct intr_frame *);
-static void syscall_munmap (struct intr_frame *);
 
 struct file_info * find_by_fd(int);
 
@@ -29,6 +31,7 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 	lock_init (&syscall_lock);
+	lock_init (&mmap_lock);
 }
 
 bool
@@ -117,7 +120,7 @@ syscall_exit (int status)
 {
   if (status < 0)
     status = -1;
-
+	
   thread_current ()->ip->exit = true;
   thread_current ()->ip->exit_status = status;
   printf ("%s: exit(%d)\n", thread_name (), status);
@@ -379,10 +382,30 @@ find_by_fd (int fd)
 	return NULL;
 }
 
+struct mmap_info *
+find_by_mapid (int mapid)
+{
+	struct thread *t = thread_current();
+	struct mmap_info *mip;
+	struct list_elem *ittr;
+
+	ittr = list_begin (&t->mmap_table);
+	while (ittr != list_end (&t->mmap_table))
+	{
+	  mip = list_entry (ittr, struct mmap_info, elem);
+		if (mip->mapid == mapid)
+		  return mip;
+	  
+		ittr = list_next (ittr);
+	}
+	return NULL;
+}
+
 static void
 syscall_mmap (struct intr_frame *f)
 {
 	struct file_info *fip;
+	struct thread *t = thread_current();
 
 	int fd, fsize, pgsize;
 	void *addr;
@@ -391,15 +414,18 @@ syscall_mmap (struct intr_frame *f)
 
 	lock_acquire (&syscall_lock);
 	
+
 	if (!validate_fd (fd)) {
 		lock_release (&syscall_lock);
 		syscall_exit (-1);
 	}
-	if (!validate_address (addr)) {
+//	printf ("fd : %d addr : %x\n", fd, addr);
+/*	if (!validate_address (addr)) {
 		lock_release (&syscall_lock);
 		syscall_exit (-1);
 	}
-	
+	printf ("fd : %d addr : %x\n", fd, addr);
+*/	
 	/*check whether fd is 0 or 1 */
 	if (fd ==0 || fd ==1) {
 		f->eax = -1;
@@ -408,59 +434,97 @@ syscall_mmap (struct intr_frame *f)
 	}
 
 	/*get filesize from the file as fd */
-	fip = find_by_fd (fd);
-	fsize = file_length (fip->f);
+	fip = find_by_fd (fd);	
+//	printf ("fsize\n");
+	struct file *target_file = fip->f;
+	fsize = file_length (target_file);
 
-	if (fsize == 0)	{
+	if (fsize == 0 || target_file == NULL)	{
 		f->eax = -1;
 		lock_release (&syscall_lock);
 		return;
 	}
+
 
 	/*check whether addr is page-aligned or not. And also addr !=0 */
-	if ((unsigned) addr % PGSIZE != 0 || addr == 0) {
+	if ( pg_round_down(addr) != addr || addr == 0) {
+		f->eax = -1;
+	//	printf("dead\n");
+		lock_release (&syscall_lock);
+		return;
+	}
+	
+	if (spt_find_upage (addr, t)) {
 		f->eax = -1;
 		lock_release (&syscall_lock);
 		return;
 	}
 
-	/*get the mmap's PGSIZE and check whether overlapped or not*/
-	uint32_t *pd;
-	struct thread *curr = thread_current(); 
+	//lock_acquire (&mmap_lock);
+	struct mmap_info *mip = (struct mmap_info *) malloc (sizeof (struct mmap_info));
+	mip->mapid = t->cur_mapid++;
+	mip->addr = addr;
+	mip->mmaped_file->f = target_file;
+
 	void *dst;
-	int cnt = 0;
-	pd = curr->pagedir;
-	for (dst = addr; (dst - addr) < fsize; dst += PGSIZE) {
-		if (lookup_page (pd,dst,false ) != NULL) {
-			f->eax = -1;
-			lock_release (&syscall_lock);
-			return;
-		}
-		cnt++;
+	off_t ofs;
+
+	for (dst = addr; (dst-addr) < fsize; dst += PGSIZE) {
+		ofs = file_tell (target_file) + (int)dst - (int)addr;
+		spt_lazy (dst, false, target_file, ofs,true, t);
+		
+		printf("mmap : %x size : %d\n", dst,fsize);
 	}
 
-	//TODO 
-	/*update or make the mmap table and return mmap_id*/
-	//mmap_table mmap_id
- 	struct mmap_info *mip;
-	//mip->mapid = mapid;		I don't know...
-	mip->addr = addr;
-	void *a;
-	a = palloc_get_multiple (PAL_USER, cnt);
-	pagedir_set_page (pd, addr, a,true);
-	list_push_back (mmap_table, mip);
-	
-	f->eax = mapid;
+	list_push_back (&t->mmap_table, &mip->elem);
+	mip->mmaped_file->mapped = true;
+
+	printf("mmap finish \n");
+	f->eax = mip->mapid;
+	//lock_release ( &mmap_lock);
 	lock_release (&syscall_lock);
 	return;
-	
+
+
 }
 
-static void
-syscall_munmap (struct intr_frame *f)
+void
+syscall_munmap (int mapid)
 {
+	struct mmap_info *mip;
+	struct spt_entry *spte;
+	struct thread *t = thread_current();
+	void *dst;
+	size_t read_size;
+	int fsize, offs;
+	
+//	lock_acquire (&mmap_lock);
 
+	printf("munmap start! \n");
 
+	mip = find_by_mapid (mapid);
+	fsize = file_length(mip->mmaped_file->f);
+	offs = file_tell (mip->mmaped_file->f);
+	read_size = fsize;
+
+	for (dst = mip->addr; (dst - mip->addr) < fsize; dst += PGSIZE) {
+		read_size = read_size < PGSIZE ? read_size : PGSIZE; 
+		
+		spte = spt_find_upage (dst, t);
+	
+		if (pagedir_get_page (t->pagedir, dst) && pagedir_is_dirty(t->pagedir, dst)) {
+			file_seek (spte->file, spte->offset);
+			file_write (spte->file, dst, read_size);
+		}
+		spt_remove (dst, t);
+		read_size -= PGSIZE;
+	
+	}
+	file_seek (mip->mmaped_file->f, offs);
+	mip->mapid = -1;
+	mip->mmaped_file->mapped = false;
+	
+	//lock_release (&mmap_lock);
 }
 
 
