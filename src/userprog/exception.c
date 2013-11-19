@@ -158,7 +158,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 	growth = (f->esp-32 <= fault_addr);
-	//printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
+	printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
@@ -175,11 +175,13 @@ page_fault (struct intr_frame *f)
 	/* Stack growth */
 	if (spte == NULL){
 		if (!is_kernel_vaddr (fault_addr) && user && not_present && growth){
+			lock_acquire (&frame_lock);
 			uint8_t *pgalloc, *upage;
 			upage = (unsigned)fault_addr / PGSIZE;
 			upage = (unsigned)upage * PGSIZE;
 			for (pgalloc = t->stack_limit - PGSIZE; pgalloc >= upage; pgalloc -= PGSIZE)
 				stack_growth(pgalloc, t);
+			lock_release (&frame_lock);
 			return;
 		}
 		
