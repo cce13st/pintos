@@ -48,6 +48,8 @@ validate_address(void *pointer)
 {
   if (is_user_vaddr (pointer) && pagedir_get_page (thread_current ()->pagedir, pointer) != NULL)
     return true;
+	if (spt_find_upage (pg_round_down(pointer), thread_current ()))
+		return true;
   return false;
 }
 
@@ -413,13 +415,11 @@ syscall_mmap (struct intr_frame *f)
 	memcpy (&addr, f->esp+8, sizeof(void *));
 
 	lock_acquire (&syscall_lock);
-	
-
 	if (!validate_fd (fd)) {
 		lock_release (&syscall_lock);
 		syscall_exit (-1);
 	}
-//	printf ("fd : %d addr : %x\n", fd, addr);
+	//printf ("fd : %d addr : %x\n", fd, addr);
 /*	if (!validate_address (addr)) {
 		lock_release (&syscall_lock);
 		syscall_exit (-1);
@@ -445,7 +445,6 @@ syscall_mmap (struct intr_frame *f)
 		return;
 	}
 
-
 	/*check whether addr is page-aligned or not. And also addr !=0 */
 	if ( pg_round_down(addr) != addr || addr == 0) {
 		f->eax = -1;
@@ -466,9 +465,11 @@ syscall_mmap (struct intr_frame *f)
 
 	void *dst;
 	off_t ofs = 0;
-
-	for (dst = addr; (dst-addr) < fsize; dst += PGSIZE) {
-		spt_lazy (dst, false, target_file, ofs,true, t);
+	for (dst = addr; dst < addr+fsize; dst += PGSIZE) {
+		if (dst+PGSIZE > addr+fsize)
+			spt_lazy (dst, false, target_file, ofs, addr+fsize-dst, true, t);
+		else
+			spt_lazy (dst, false, target_file, ofs, PGSIZE, true, t);
 		ofs += PGSIZE;
 	}
 
@@ -476,11 +477,8 @@ syscall_mmap (struct intr_frame *f)
 	mip->mmaped_file->mapped = true;
 
 	f->eax = mip->mapid;
-	printf ("%x %x\n", target_file, addr);	
 	lock_release (&syscall_lock);
 	return;
-
-
 }
 
 void
@@ -492,11 +490,7 @@ syscall_munmap (int mapid)
 	void *dst;
 	size_t read_size;
 	int fsize, offs;
-	
-//	lock_acquire (&mmap_lock);
-
-	printf("munmap start! \n");
-
+/*	
 	mip = find_by_mapid (mapid);
 	fsize = file_length(mip->mmaped_file->f);
 	offs = file_tell (mip->mmaped_file->f);
@@ -513,13 +507,10 @@ syscall_munmap (int mapid)
 		}
 		spt_remove (dst, t);
 		read_size -= PGSIZE;
-	
 	}
 	file_seek (mip->mmaped_file->f, offs);
 	mip->mapid = -1;
-	mip->mmaped_file->mapped = false;
-	
-	//lock_release (&mmap_lock);
+	mip->mmaped_file->mapped = false;*/
 }
 
 

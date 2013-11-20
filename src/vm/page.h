@@ -24,6 +24,7 @@ struct spt_entry
 	bool zero;
 	bool writable;
 	off_t offset;
+	size_t read_bytes;
 	struct file *file;
 
 	struct hash_elem hash_elem;
