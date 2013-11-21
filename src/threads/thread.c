@@ -459,7 +459,7 @@ init_thread (struct thread *t, const char *name, int priority)
 	sema_init (&t->p_wait, 0);
   sema_init (&t->load_wait, 0);
 	t->cur_fd = 2;
-	t->cur_mapid = 0;
+	t->cur_mapid = 1;
 
 	t->stack_limit = PHYS_BASE - PGSIZE;
 }

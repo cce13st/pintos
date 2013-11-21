@@ -158,7 +158,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 	growth = (f->esp-32 <= fault_addr);
-	//printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
+	printf ("page_fault %x %x %d\n", fault_addr, f->esp, thread_current ()->tid);
   /* Modified part - there is possibility that user can pass a
    * null pointer, a pointer to unmapped virtual memory, or
    * a pointer to kernel virtual address space.
@@ -202,12 +202,11 @@ page_fault (struct intr_frame *f)
 		else
 		{
 			int bytes = file_read_at (spte->file, kpage, spte->read_bytes, spte->offset);
-			if (spte->offset == 0)
-				bytes = file_read (spte->file, kpage, PGSIZE);
+			//printf ("%d bytes, %x file poiter %d\n", bytes, spte->file, spte->read_bytes);
 			if (bytes != PGSIZE)
 				memset (kpage+bytes, 0, PGSIZE-bytes);
 		}
-		//hex_dump ((int)kpage, kpage, PGSIZE, true);
+		hex_dump ((int)kpage, kpage, PGSIZE, true);
 		frame_insert (spte->upage, (unsigned)kpage-0xc0000000, t);
 		spte->lazy = false;
 		spte->kpage = kpage;
