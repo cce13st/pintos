@@ -400,6 +400,7 @@ find_by_mapid (int mapid)
 	  
 		ittr = list_next (ittr);
 	}
+	printf ("Find mapid failed!\n");
 	return NULL;
 }
 
@@ -472,10 +473,8 @@ syscall_mmap (struct intr_frame *f)
 		ofs += PGSIZE;
 	}
 
-
 	list_push_back (&t->mmap_table, &mip->elem);
 	mip->mmaped_file->mapped = true;
-
 	f->eax = mip->mapid;
 	lock_release (&syscall_lock);
 	return;
@@ -497,7 +496,6 @@ syscall_munmap (int mapid)
 	read_size = fsize;
 	for (dst = mip->addr; (dst - mip->addr) < fsize; dst += PGSIZE) {
 		read_size = read_size < PGSIZE ? read_size : PGSIZE; 
-		
 		spte = spt_find_upage (dst, t);
 
 		if (pagedir_get_page (t->pagedir, dst) && pagedir_is_dirty(t->pagedir, dst)) {

@@ -208,14 +208,13 @@ process_exit (void)
 
 	while (list_size (&curr->mmap_table) > 0)
 	{
-		ittr = list_pop_front (&curr->mmap_table);
+		ittr = list_front (&curr->mmap_table);
 		mip = list_entry (ittr, struct mmap_info, elem);
 		if (mip->mapid != -1) 
 			syscall_munmap(mip->mapid);
-		list_remove (&mip->elem);
+		list_remove (ittr);
 		free(mip);
 	}
-
 
   while (list_size (&curr->fd_table) > 0)
 	{

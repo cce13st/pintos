@@ -196,11 +196,6 @@ page_fault (struct intr_frame *f)
 		uint8_t *kpage = palloc_get_page (PAL_USER);
 		pagedir_set_page (t->pagedir, spte->upage, kpage, spte->writable);
 
-		char buf[800] = {0,};
-		if (spte->read_bytes < 1000)
-			file_read_at (spte->file, buf, spte->read_bytes, spte->offset);
-		//printf ("file %x, read_bytes %d, offset %d, buf %s\n", spte->file, spte->read_bytes, spte->offset, buf);
-
 		if (spte->zero)
 			memset (kpage, 0, PGSIZE);
 		else
