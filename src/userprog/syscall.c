@@ -435,7 +435,6 @@ syscall_mmap (struct intr_frame *f)
 
 	/*get filesize from the file as fd */
 	fip = find_by_fd (fd);	
-//	printf ("fsize\n");
 	struct file *target_file = fip->f;
 	fsize = file_length (target_file);
 
@@ -461,7 +460,6 @@ syscall_mmap (struct intr_frame *f)
 	struct mmap_info *mip = (struct mmap_info *) malloc (sizeof (struct mmap_info));
 	mip->mapid = t->cur_mapid++;
 	mip->addr = addr;
-	printf ("target_file %x addr %x\n", target_file, addr);
 	mip->mmaped_file = fip;
 
 	void *dst;
@@ -473,6 +471,7 @@ syscall_mmap (struct intr_frame *f)
 			spt_lazy (dst, false, target_file, ofs, PGSIZE, true, t);
 		ofs += PGSIZE;
 	}
+
 
 	list_push_back (&t->mmap_table, &mip->elem);
 	mip->mmaped_file->mapped = true;
@@ -492,25 +491,20 @@ syscall_munmap (int mapid)
 	size_t read_size;
 	int fsize, offs;
 
-	printf ("syscall parameter mapid %d\n", mapid);
 	mip = find_by_mapid (mapid);
-	printf ("1. find by mapid %x\n", mip->mmaped_file->f);
 	fsize = file_length(mip->mmaped_file->f);
 	offs = file_tell (mip->mmaped_file->f);
 	read_size = fsize;
-	printf ("2. file ops complete\n");
 	for (dst = mip->addr; (dst - mip->addr) < fsize; dst += PGSIZE) {
 		read_size = read_size < PGSIZE ? read_size : PGSIZE; 
 		
 		spte = spt_find_upage (dst, t);
 
-		printf ("3. find upage\n");
 		if (pagedir_get_page (t->pagedir, dst) && pagedir_is_dirty(t->pagedir, dst)) {
 			file_seek (spte->file, spte->offset);
 			file_write (spte->file, dst, read_size);
 		}
 		spt_remove (dst, t);
-		printf ("4. spt remove\n");
 		read_size -= PGSIZE;
 	}
 	file_seek (mip->mmaped_file->f, offs);
