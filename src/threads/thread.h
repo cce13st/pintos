@@ -143,14 +143,12 @@ struct file_info
 	  int fd;
 		struct file *f;
 		struct list_elem elem;
-
-		bool mapped;
 	};
 
 struct mmap_info 
 	{
 		int mapid;			
-		struct file_info *mmaped_file; /*file information about memory mapped file */
+		struct file *f;
 		void *addr;
 		struct list_elem elem;
 	};
