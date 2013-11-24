@@ -7,5 +7,4 @@ void swap_out (struct frame_entry *);
 void swap_in (struct spt_entry *, void *);
 void swap_clear (unsigned);
 
-struct lock swap_lock;
 struct bitmap *swap_alloc;
