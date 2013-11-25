@@ -8,7 +8,6 @@
 void swap_init ()
 {
 	swap_alloc = bitmap_create (256*3);	//Swap disk size = 3MB
-	lock_init (&swap_lock);
 }
 
 /* swap out page from frame to disk */
