@@ -14,10 +14,9 @@
    Must be exactly DISK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    disk_sector_t start;                /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+		uint16_t index[252];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -48,7 +47,8 @@ byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
   if (pos < inode->data.length)
-    return inode->data.start + pos / DISK_SECTOR_SIZE;
+		return inode->data.index[pos/DISK_SECTOR_SIZE];
+    //return inode->data.start + pos / DISK_SECTOR_SIZE;
   else
     return -1;
 }
@@ -74,7 +74,8 @@ inode_create (disk_sector_t sector, off_t length)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
-
+	
+	printf ("inode_create1 %d %d\n", length, length/DISK_SECTOR_SIZE);
   ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
@@ -84,10 +85,11 @@ inode_create (disk_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
+	printf ("inode_create1.5\n");
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start))
+      /*if (free_map_allocate (sectors, &disk_inode->start))
         {
           disk_write (filesys_disk, sector, disk_inode);
           if (sectors > 0) 
@@ -99,9 +101,21 @@ inode_create (disk_sector_t sector, off_t length)
                 disk_write (filesys_disk, disk_inode->start + i, zeros); 
             }
           success = true; 
-        } 
+        } */
+
+			int i;
+			static char zeros[DISK_SECTOR_SIZE];
+			for (i=0; i<sectors; i++){
+				free_map_allocate (1, disk_inode->index+i);
+				disk_write (filesys_disk, disk_inode->index[i], zeros);
+			}
+			printf ("inode_create2\n");
+			disk_write (filesys_disk, sector, disk_inode);
+			printf ("inode_create3\n");
+			success = true;
       free (disk_inode);
     }
+	printf ("inode_create4\n");
   return success;
 }
 
@@ -177,8 +191,11 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+					int i;
+					for (i=0; i<bytes_to_sectors (inode->data.length); i++)
+						free_map_release (inode->data.index[i], 1);
+          //free_map_release (inode->data.index,
+          //                  bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
