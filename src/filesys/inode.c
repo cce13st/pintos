@@ -75,7 +75,6 @@ inode_create (disk_sector_t sector, off_t length)
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 	
-	printf ("inode_create1 %d %d\n", length, length/DISK_SECTOR_SIZE);
   ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
@@ -85,7 +84,6 @@ inode_create (disk_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-	printf ("inode_create1.5\n");
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
@@ -109,13 +107,10 @@ inode_create (disk_sector_t sector, off_t length)
 				free_map_allocate (1, disk_inode->index+i);
 				disk_write (filesys_disk, disk_inode->index[i], zeros);
 			}
-			printf ("inode_create2\n");
 			disk_write (filesys_disk, sector, disk_inode);
-			printf ("inode_create3\n");
 			success = true;
       free (disk_inode);
     }
-	printf ("inode_create4\n");
   return success;
 }
 
@@ -279,8 +274,36 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
+	int a = size;
   if (inode->deny_write_cnt)
     return 0;
+
+	if (inode->data.length < offset+size)
+	{
+		//printf ("extension!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		/* File extensinon condition */
+		int i, length = inode->data.length, sectors = bytes_to_sectors (inode->data.length);
+		int extend = offset + size - length;
+		static char zeros[DISK_SECTOR_SIZE];
+
+		//printf ("inode->data.length1 %d\n", inode->data.length);
+		int remain = 0;
+		if ((length % DISK_SECTOR_SIZE) != 0)
+			remain = DISK_SECTOR_SIZE - (length % DISK_SECTOR_SIZE);
+
+		if (remain >= extend)
+			inode->data.length += extend;
+		else
+		{
+			for (i=0; i<bytes_to_sectors (extend); i++){
+				free_map_allocate (1, inode->data.index+sectors+i);
+				disk_write (filesys_disk, inode->data.index[sectors+i], zeros);
+			}
+			inode->data.length += extend;
+		}
+		disk_write (filesys_disk, inode->sector, &inode->data);
+		//printf ("inode->data.length2 %d\n", inode->data.length);
+	}
 
   while (size > 0) 
     {
@@ -331,6 +354,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
+	//printf ("written %d, size %d\n", bytes_written, a);
   return bytes_written;
 }
 

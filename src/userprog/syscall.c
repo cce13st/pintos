@@ -170,9 +170,9 @@ syscall_write (struct intr_frame *f)
 	if (!validate_address (buffer))
 	  syscall_exit (-1);
 	
-	//lock_acquire (&syscall_lock);
+	lock_acquire (&syscall_lock);
 	if (! validate_fd (fd)){
-		//lock_release (&syscall_lock);
+		lock_release (&syscall_lock);
 	  f->eax = -1;
   	return;
 	}
@@ -193,7 +193,7 @@ syscall_write (struct intr_frame *f)
 		else 
 			f->eax = file_write(target_file, buffer, size);
 	}
-	//lock_release (&syscall_lock);
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -288,6 +288,8 @@ syscall_read (struct intr_frame *f) {
 
   if (!validate_address (buffer) || buffer == NULL)
 	  syscall_exit (-1);
+
+	//lock_acquire (&syscall_lock);
 	if (!validate_fd (fd)){
 	  f->eax = -1;
 		return;
@@ -310,6 +312,7 @@ syscall_read (struct intr_frame *f) {
 		else
 			f->eax = file_read(target_file, buffer, size);
 	}
+	//lock_release (&syscall_lock);
 }
 
 static void
