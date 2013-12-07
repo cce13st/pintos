@@ -32,6 +32,7 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 	lock_init (&syscall_lock);
 	lock_init (&mmap_lock);
+	lock_init (&rw_lock);
 }
 
 bool
@@ -190,8 +191,11 @@ syscall_write (struct intr_frame *f)
 
 		if(!target_file)
 			f->eax = -1;
-		else 
+		else{
+			lock_acquire (&rw_lock);
 			f->eax = file_write(target_file, buffer, size);
+			lock_release (&rw_lock);
+		}
 	}
 	lock_release (&syscall_lock);
 }
@@ -309,8 +313,10 @@ syscall_read (struct intr_frame *f) {
 		target_file = find_by_fd(fd)->f;
 		if (!target_file)
 			f->eax = -1;
-		else
+		else{
+			lock_acquire (&rw_lock);
 			f->eax = file_read(target_file, buffer, size);
+			lock_release (&rw_lock);
 	}
 	//lock_release (&syscall_lock);
 }
