@@ -10,6 +10,9 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+/* Define Disk cache buffer size */
+#define CACHE_SIZE 16
+
 /* On-disk inode.
    Must be exactly DISK_SECTOR_SIZE bytes long. */
 struct inode_disk
@@ -383,4 +386,72 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+void cache_init ()
+{
+	rucnt = 1;		// Recently used count
+	cdata = malloc (DISK_SECTOR_SIZE * CACHE_SIZE);		// actual disk data
+	cidx = calloc (sizeof (int) * CACHE_SIZE);				// sector index
+	cdirty = malloc (sizeof (bool) * CACHE_SIZE);			// dirty bit
+	cused = malloc (sizeof (int) * CACHE_SIZE);			// store rucnt for LRU eviction policy
+}
+
+int cache_find (disk_sector_t sector_idx)
+{
+	int i;
+	for (i=0; i<CACHE_SIZE; i++){
+		if (cidx[i] == sector_idx)
+			return i;
+	}
+
+	return -1;
+}
+
+void cache_read (disk_sector_t sector_idx, char *buf)
+{
+	int target = cache_find (sector_idx);
+	if (target != -1)
+	{
+		c_used[target] = rucnt++;
+		memcpy (cdata[target], buf, DISK_SETOR_SIZE);
+		return;
+	}
+
+	
+}
+
+void cache_write (disk_sector_t sector_idx, char *buf)
+{
+	int target = cache_find (sector_idx);
+	if (target != -1)
+	{
+		c_used[target] = rucnt++;
+		memcpy (buf, cdata[target], DISK_SETOR_SIZE);
+		return;
+	}
+}
+
+int cache_get ()
+{
+	for (i=0; i<CACHE_SIZE; i++)
+		if (cidx[i] == 0)
+			return i;
+	
+	/* Eviction process */
+	int max = 0, midx, i;
+
+	for (i=0; i<CACHE_SIZE; i++){
+		if (max < cused[i]){
+			midx = i;
+			max = cused[i];
+		}
+	}
+	
+	/* If dirty, write on disk */
+	if (cdirty[midx])
+		disk_write();
+	
+	cidx[midx] = 0;
+	return midx;
 }
