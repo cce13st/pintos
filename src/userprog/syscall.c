@@ -24,6 +24,16 @@ static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 static void syscall_mmap (struct intr_frame *);
 
+static struct dir *get_directory (char *, bool);
+static bool abs (char *);
+
+static void syscall_chdir (struct intr_frame *);
+static void syscall_mkdir (struct intr_frame *);
+static void syscall_readdir (struct intr_frame *);
+static void syscall_isdir (struct intr_frame *);
+static void syscall_inumber (struct intr_frame *);
+
+
 struct file_info * find_by_fd(int);
 
 void
@@ -107,6 +117,21 @@ syscall_handler (struct intr_frame *f UNUSED)
 			break;
 		case SYS_MUNMAP:
 			syscall_munmap (*(int *)(f->esp+4));
+			break;
+		case SYS_CHDIR:
+			syscall_chdir (f);
+			break;
+		case SYS_MKDIR:
+			syscall_mkdir (f);
+			break;
+		case SYS_READDIR:
+			syscall_readdir (f);
+			break;
+		case SYS_ISDIR:
+			syscall_isdir (f);
+			break;
+		case SYS_INUMBER:
+			syscall_inumber (f);
 			break;
 	}
 }
@@ -507,3 +532,222 @@ syscall_munmap (int mapid)
 	file_seek (mip->f, offs);
 	mip->mapid = -1;
 }
+
+
+/*make get_directory method to implement easily */
+static struct dir*
+get_directory (char *path, bool absolute) 
+{
+	// how about "cd   " -> path is null and path is root
+	struct dir *base;
+	if (absolute)
+		base = dir_open_root();
+	else 
+		base = dir_open (inode_open  (thread_current()->cur_dir));
+	//TODO: dir_close(base) and dir_open(new inode)
+
+	//parsing the path
+	
+	size_t size = strlen(path) + 1;
+	char buf[size];
+	strlcpy(buf, path, size);
+
+	
+
+
+
+}
+
+/*make the method to check whether path is absolute or not */
+static bool
+abs (char *path)
+{
+	if (path[0] == '/')
+		return false;
+	return true;
+}
+
+
+static void
+syscall_chdir (struct intr_frame *)
+{
+	const char *dir;
+	memcpy (&dir, f->esp+4, sizeof(char *));
+
+	if (dir == NULL) {
+		f->eax = false;
+		return;
+	}
+
+	struct dir *new;
+	new = get_directory (dir, abs(dir));
+
+	if (new == NULL) {
+		f->eax = false;
+		return ;
+	}
+	thread_current()->cur_dir = inode_get_inumber( dir_get_inode(new));
+	dir_close(new);
+	f->eax = true;
+	return;
+}
+
+
+
+
+
+static void
+syscall_mkdir (struct intr_frame *) 
+{
+	const char *dir;
+	memcpy (&dir, f->esp+4, sizeof(char *));
+
+	if (dir == NULL) {
+		f->eax = false;
+		return ;
+	}
+	struct dir *base;
+	struct dir *dir;
+	char *new_dir;
+	char *delim;
+	size_t len = strlen(dir)+1;
+	char temp[len];
+	
+	delim = strrchr (dir, '/');
+	/* directory name which end with '/' */
+	if (*(delim+1) == '\0') {
+		f->eax = false;
+		return;
+	}
+	/* add the new directory in the current dir */
+	else if (delim == NULL)
+	{
+		base = dir_open (inode_open (thread_current()->cur_dir));
+
+	}
+	/* add the new direnctory in the difference dir */
+	else {
+		strlcpy (temp, dir, len);
+		delim = strrchr (temp, '/');
+		new_dir = strtok_r (NULL, '/', &delim);
+		*delim = '\0';
+
+		if (abs(dir))
+			base = get_directory (temp, true);
+		else
+			base = get_directory (temp, false);
+	}
+	
+	if (base == NULL) {
+		f->eax = false;
+		return;
+	}
+	
+	disk_sector_t inode_sector;
+
+	/* add up the new dir */
+	bool success = (free_map_allocate (1, &inode_sector)
+									&& dir_create (inode_sector, 2)
+									&& dir_add (base, new_dir, inode_sector));
+
+	/* If it fails allocation */
+	 * //inode_sector check? 
+	if (!success) 
+		free_map_release (inode_sector, 1);
+
+	/* add up the '.', '..' directory in the new_dir */	
+	else {
+	struct dir *new = dir_open ( inode_open (inode_sector));
+	dir_add (new, ".", inode_sector);
+	dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
+	new->inode->is_dir = true;
+	dir_close (new);
+	}
+	dir_close (base);
+
+	f->eax = success;
+	return;
+}
+
+static void
+syscall_readdir (struct intr_frame *)
+{
+	int fd;
+	char *name;
+	memcpy (&fd, f->esp+4, sizeof (int));
+	memcpy (&name, f->esp+8, sizeof (char));
+
+ 	if (!validate_fd(fd) || name == NULL) {
+		f->eax = false;
+		return;
+	}
+	
+	struct file *target_file;
+ 	target_file = find_by_fd (fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+ 	struct dir *new = (struct dir *) target_file;
+	
+	if (!dir_get_inode(new)->is_dir) {
+		f->eax = false;
+		return;
+	
+	f->eax = dir_readdir (new, name);	
+	return;
+}
+
+static void
+syscall_isdir (struct intr_frame *)
+{
+	int fd;
+	memcpy (&fd, f->esp+4, sizeof(int));
+	
+	if (!validate_fd(fd)) {
+		f->eax = false;
+		return;
+	}
+	
+	struct file *target_file;
+	target_file = find_by_fd(fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+
+	f->eax = (file_get_inode (target_file))->is_dir;
+	return;
+}
+
+static void
+syscall_inumber (struct intr_frame *)
+{
+	int fd;
+	memcpy(&fd, f->esp+4, sizeof(int));
+	
+	if (!validate_fd(fd)) {
+		f->eax = false;
+		return;
+	}
+
+	struct file *target_file;
+	target_file = find_by_fd (fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+
+	f->eax = inode_get_inumber (file_get_inode (target_file));
+	return;
+	
+}
+
+
+
+
+
+

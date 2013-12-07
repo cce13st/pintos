@@ -37,7 +37,8 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-  };
+  	bool is_dir;												/* false : file, true : directory */
+	};
 
 /* Returns the disk sector that contains byte offset POS within
    INODE.
@@ -87,6 +88,7 @@ inode_create (disk_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+			disk_inode->is_dir = false;
       if (free_map_allocate (sectors, &disk_inode->start))
         {
           disk_write (filesys_disk, sector, disk_inode);
