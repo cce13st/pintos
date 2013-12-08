@@ -392,7 +392,7 @@ void cache_init ()
 {
 	rucnt = 1;		// Recently used count
 	cdata = malloc (DISK_SECTOR_SIZE * CACHE_SIZE);		// actual disk data
-	cidx = calloc (sizeof (int) * CACHE_SIZE);				// sector index
+	cidx = calloc (sizeof (int), CACHE_SIZE);				// sector index
 	cdirty = malloc (sizeof (bool) * CACHE_SIZE);			// dirty bit
 	cused = malloc (sizeof (int) * CACHE_SIZE);			// store rucnt for LRU eviction policy
 }
@@ -413,12 +413,10 @@ void cache_read (disk_sector_t sector_idx, char *buf)
 	int target = cache_find (sector_idx);
 	if (target != -1)
 	{
-		c_used[target] = rucnt++;
-		memcpy (cdata[target], buf, DISK_SETOR_SIZE);
+		cused[target] = rucnt++;
+		memcpy (cdata[target], buf, DISK_SECTOR_SIZE);
 		return;
 	}
-
-	
 }
 
 void cache_write (disk_sector_t sector_idx, char *buf)
@@ -426,21 +424,21 @@ void cache_write (disk_sector_t sector_idx, char *buf)
 	int target = cache_find (sector_idx);
 	if (target != -1)
 	{
-		c_used[target] = rucnt++;
-		memcpy (buf, cdata[target], DISK_SETOR_SIZE);
+		cused[target] = rucnt++;
+		memcpy (buf, cdata[target], DISK_SECTOR_SIZE);
 		return;
 	}
 }
 
 int cache_get ()
 {
+	int i;
 	for (i=0; i<CACHE_SIZE; i++)
 		if (cidx[i] == 0)
 			return i;
 	
 	/* Eviction process */
-	int max = 0, midx, i;
-
+	int max = 0, midx;
 	for (i=0; i<CACHE_SIZE; i++){
 		if (max < cused[i]){
 			midx = i;
@@ -450,7 +448,7 @@ int cache_get ()
 	
 	/* If dirty, write on disk */
 	if (cdirty[midx])
-		disk_write();
+		disk_write(midx, cdata[midx], DISK_SECTOR_SIZE);
 	
 	cidx[midx] = 0;
 	return midx;

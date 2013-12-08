@@ -317,6 +317,7 @@ syscall_read (struct intr_frame *f) {
 			lock_acquire (&rw_lock);
 			f->eax = file_read(target_file, buffer, size);
 			lock_release (&rw_lock);
+		}
 	}
 	//lock_release (&syscall_lock);
 }
