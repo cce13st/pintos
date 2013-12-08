@@ -237,7 +237,6 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 
 
 /* Check if directory is empty. */
-
 /*bool
 dir_is_empty (struct dir *dir)
 {
@@ -246,11 +245,10 @@ dir_is_empty (struct dir *dir)
 
 	for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, os) == sizeof e; ofs+= sizeof e)
 	{
-		if (e.in_use && (!
-	
+		if (e.inode_sector)	// If inode sector is not 0, there exists some file(or directory)
+			return false;
 	}	
-
-
+	return true;
 }
 */
 
