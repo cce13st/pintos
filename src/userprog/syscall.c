@@ -539,62 +539,82 @@ static struct dir*
 get_directory (char *path, bool absolute) 
 {
 	// how about "cd   " -> path is null and path is root
-	struct dir *base;
+	struct dir *base, *target, *prev;
 	if (absolute)
-		base = dir_open_root();
+		base = dir_open_root ();
 	else 
-		base = dir_open (inode_open  (thread_current()->cur_dir));
+		base = dir_open (inode_open  (thread_current ()->cur_dir));
 	//TODO: dir_close(base) and dir_open(new inode)
+	// Maybe does in while loop
 
+	struct inode *inode;
+	int pos = 0;
+	char buf[17];
+	target = base;
 	//parsing the path
-	
-	size_t size = strlen(path) + 1;
-	char buf[size];
-	strlcpy(buf, path, size);
+	while (true)
+	{
+		pos = path_parse (path, pos, buf);
+		if (pos == -1)
+			break;
+		/* Search directory to use buf */
+		prev = target;
+		dir_lookup (target, buf, &inode);
+		target = dir_open (inode);
+		dir_close (prev);
+	}
 
-	
+	return target;
+}
 
+static int
+path_parse (char *name, int pos, char *buf)
+{
+	int i = 0;
+	if (name[pos] == NULL)
+		return -1;
 
-
+	while (pos < strlen (name))
+	{
+		if (name[pos] == '/'){
+			pos++;
+			break;
+		}
+		buf[i++] = name[pos++];
+	}
+	return pos;
 }
 
 /*make the method to check whether path is absolute or not */
 static bool
-abs (char *path)
+path_abs (char *path)
 {
-	if (path[0] == '/')
-		return false;
-	return true;
+	return (path[0] == '/');
 }
-
 
 static void
 syscall_chdir (struct intr_frame *)
 {
 	const char *dir;
 	memcpy (&dir, f->esp+4, sizeof(char *));
-
+	
 	if (dir == NULL) {
 		f->eax = false;
 		return;
 	}
 
 	struct dir *new;
-	new = get_directory (dir, abs(dir));
-
+	new = get_directory (dir, path_abs (dir));
 	if (new == NULL) {
 		f->eax = false;
 		return ;
 	}
-	thread_current()->cur_dir = inode_get_inumber( dir_get_inode(new));
-	dir_close(new);
+
+	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
+	dir_close (new);
 	f->eax = true;
 	return;
 }
-
-
-
-
 
 static void
 syscall_mkdir (struct intr_frame *) 
@@ -606,11 +626,12 @@ syscall_mkdir (struct intr_frame *)
 		f->eax = false;
 		return ;
 	}
+	
 	struct dir *base;
 	struct dir *dir;
 	char *new_dir;
 	char *delim;
-	size_t len = strlen(dir)+1;
+	size_t len = strlen (dir) + 1;
 	char temp[len];
 	
 	delim = strrchr (dir, '/');
@@ -622,7 +643,7 @@ syscall_mkdir (struct intr_frame *)
 	/* add the new directory in the current dir */
 	else if (delim == NULL)
 	{
-		base = dir_open (inode_open (thread_current()->cur_dir));
+		base = dir_open (inode_open (thread_current ()->cur_dir));
 
 	}
 	/* add the new direnctory in the difference dir */
@@ -632,7 +653,7 @@ syscall_mkdir (struct intr_frame *)
 		new_dir = strtok_r (NULL, '/', &delim);
 		*delim = '\0';
 
-		if (abs(dir))
+		if (path_abs (dir))
 			base = get_directory (temp, true);
 		else
 			base = get_directory (temp, false);
