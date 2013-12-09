@@ -11,7 +11,7 @@
 #define INODE_MAGIC 0x494e4f44
 
 /* Define Disk cache buffer size */
-#define CACHE_SIZE 16
+#define CACHE_SIZE 128
 
 /* On-disk inode.
    Must be exactly DISK_SECTOR_SIZE bytes long. */
@@ -21,6 +21,12 @@ struct inode_disk
     unsigned magic;                     /* Magic number. */
 		uint16_t index[252];
   };
+
+static int cache_find (disk_sector_t);
+static void cache_read (disk_sector_t, off_t, char *, int);
+static void cache_write (disk_sector_t, off_t, char *, int);
+static int cache_get (void);
+static void cache_out (int);
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -64,6 +70,7 @@ static struct list open_inodes;
 void
 inode_init (void) 
 {
+	cache_init ();
   list_init (&open_inodes);
 }
 
@@ -178,21 +185,28 @@ inode_close (struct inode *inode)
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
-
+	
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
+			int i;
+
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
- 
+
+			for (i=0; i<bytes_to_sectors (inode->data.length); i++){
+				int exist = cache_find (inode->data.index[i]);
+				if (exist != -1)
+					cache_out (exist);
+			}
+
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-					int i;
 					for (i=0; i<bytes_to_sectors (inode->data.length); i++)
 						free_map_release (inode->data.index[i], 1);
-          //free_map_release (inode->data.index,
+					//free_map_release (inode->data.index,
           //                  bytes_to_sectors (inode->data.length)); 
         }
 
@@ -218,7 +232,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
-
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -235,24 +248,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (chunk_size <= 0)
         break;
 
-      if (sector_ofs == 0 && chunk_size == DISK_SECTOR_SIZE) 
-        {
-          /* Read full sector directly into caller's buffer. */
-          disk_read (filesys_disk, sector_idx, buffer + bytes_read); 
-        }
-      else 
-        {
-          /* Read sector into bounce buffer, then partially copy
-             into caller's buffer. */
-          if (bounce == NULL) 
-            {
-              bounce = malloc (DISK_SECTOR_SIZE);
-              if (bounce == NULL)
-                break;
-            }
-          disk_read (filesys_disk, sector_idx, bounce);
-          memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
-        }
+			cache_read (sector_idx, sector_ofs, buffer + bytes_read, chunk_size);
       
       /* Advance. */
       size -= chunk_size;
@@ -283,13 +279,11 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
 	if (inode->data.length < offset+size)
 	{
-		//printf ("extension!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 		/* File extensinon condition */
 		int i, length = inode->data.length, sectors = bytes_to_sectors (inode->data.length);
 		int extend = offset + size - length;
 		static char zeros[DISK_SECTOR_SIZE];
 
-		//printf ("inode->data.length1 %d\n", inode->data.length);
 		int remain = 0;
 		if ((length % DISK_SECTOR_SIZE) != 0)
 			remain = DISK_SECTOR_SIZE - (length % DISK_SECTOR_SIZE);
@@ -305,7 +299,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 			inode->data.length += extend;
 		}
 		disk_write (filesys_disk, inode->sector, &inode->data);
-		//printf ("inode->data.length2 %d\n", inode->data.length);
 	}
 
   while (size > 0) 
@@ -323,32 +316,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-
-      if (sector_ofs == 0 && chunk_size == DISK_SECTOR_SIZE) 
-        {
-          /* Write full sector directly to disk. */
-          disk_write (filesys_disk, sector_idx, buffer + bytes_written); 
-        }
-      else 
-        {
-          /* We need a bounce buffer. */
-          if (bounce == NULL) 
-            {
-              bounce = malloc (DISK_SECTOR_SIZE);
-              if (bounce == NULL)
-                break;
-            }
-
-          /* If the sector contains data before or after the chunk
-             we're writing, then we need to read in the sector
-             first.  Otherwise we start with a sector of all zeros. */
-          if (sector_ofs > 0 || chunk_size < sector_left) 
-            disk_read (filesys_disk, sector_idx, bounce);
-          else
-            memset (bounce, 0, DISK_SECTOR_SIZE);
-          memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
-          disk_write (filesys_disk, sector_idx, bounce); 
-        }
+			
+			printf ("write on sector %d\n", sector_idx);
+			cache_write (sector_idx, sector_ofs, buffer + bytes_written, chunk_size);
 
       /* Advance. */
       size -= chunk_size;
@@ -388,68 +358,109 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
-void cache_init ()
+void
+cache_init ()
 {
+	int i;
 	rucnt = 1;		// Recently used count
 	cdata = malloc (DISK_SECTOR_SIZE * CACHE_SIZE);		// actual disk data
 	cidx = calloc (sizeof (int), CACHE_SIZE);				// sector index
+	cvalid = malloc (sizeof (bool) * CACHE_SIZE);
 	cdirty = malloc (sizeof (bool) * CACHE_SIZE);			// dirty bit
 	cused = malloc (sizeof (int) * CACHE_SIZE);			// store rucnt for LRU eviction policy
+	for (i=0; i<CACHE_SIZE; i++)
+		cvalid[i] = false;
 }
 
-int cache_find (disk_sector_t sector_idx)
+static int
+cache_find (disk_sector_t sector_idx)
 {
 	int i;
-	for (i=0; i<CACHE_SIZE; i++){
-		if (cidx[i] == sector_idx)
+	for (i=0; i<CACHE_SIZE; i++)
+		if (cidx[i] == sector_idx && cvalid[i])
 			return i;
-	}
 
 	return -1;
 }
 
-void cache_read (disk_sector_t sector_idx, char *buf)
+static void
+cache_read (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 {
 	int target = cache_find (sector_idx);
+	printf ("cache_read %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
 	if (target != -1)
 	{
 		cused[target] = rucnt++;
-		memcpy (cdata[target], buf, DISK_SECTOR_SIZE);
+		memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
 		return;
 	}
+	
+	/* else, find from disk */
+	int empty = cache_get ();
+	cused[empty] = rucnt++;
+	cidx[empty] = sector_idx;
+	cvalid[empty] = true;
+	cdirty[empty] = false;
+  disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
+	
+	memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
+	//hex_dump (buf, buf, 512, true);
 }
 
-void cache_write (disk_sector_t sector_idx, char *buf)
+static void
+cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 {
 	int target = cache_find (sector_idx);
+	printf ("cache_write %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
+	printf ("ofs %d, size %d buf %s\n", ofs, size, buf);
 	if (target != -1)
 	{
 		cused[target] = rucnt++;
-		memcpy (buf, cdata[target], DISK_SECTOR_SIZE);
+		cdirty[target] = true;
+		memcpy (cdata + target * DISK_SECTOR_SIZE + ofs, buf, size);
+		//hex_dump (cdata+target*DISK_SECTOR_SIZE, cdata+target*DISK_SECTOR_SIZE, 512, true);
 		return;
 	}
+	
+	/* else, find from disk */
+	int empty = cache_get ();
+	cused[empty] = rucnt++;
+	cidx[empty] = sector_idx;
+	cvalid[empty] = true;
+	cdirty[empty] = true;
+  disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
+	
+	memcpy (cdata + target * DISK_SECTOR_SIZE + ofs, buf, size);
+	//hex_dump (cdata+target*DISK_SECTOR_SIZE, cdata+target*DISK_SECTOR_SIZE, 512, true);
 }
 
-int cache_get ()
+static int
+cache_get ()
 {
 	int i;
 	for (i=0; i<CACHE_SIZE; i++)
-		if (cidx[i] == 0)
+		if (!cvalid[i])
 			return i;
 	
 	/* Eviction process */
-	int max = 0, midx;
+	int max = 0, midx = 0;
 	for (i=0; i<CACHE_SIZE; i++){
 		if (max < cused[i]){
 			midx = i;
 			max = cused[i];
 		}
 	}
-	
-	/* If dirty, write on disk */
-	if (cdirty[midx])
-		disk_write(midx, cdata[midx], DISK_SECTOR_SIZE);
-	
-	cidx[midx] = 0;
+
+	cache_out (midx);
 	return midx;
+}
+
+static void
+cache_out (int target)
+{
+	printf ("cache_out %d\n", cidx[target]);
+	cvalid[target] = false;
+
+	if (cdirty[target])
+		disk_write (filesys_disk, cidx[target], cdata + target * DISK_SECTOR_SIZE);
 }

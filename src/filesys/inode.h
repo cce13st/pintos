@@ -20,8 +20,11 @@ void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
 
+
+void cache_init (void);
 char *cdata;
 disk_sector_t *cidx;
+bool *cvalid;
 bool *cdirty;
 int rucnt;
 int *cused;
