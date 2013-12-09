@@ -7,6 +7,9 @@
 #include "userprog/pagedir.h"
 #include "filesys/off_t.h"
 #include "vm/page.h"
+#include "filesys/directory.c"
+#include "filesys/inode.c"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt (struct intr_frame *);
@@ -593,7 +596,7 @@ path_abs (char *path)
 }
 
 static void
-syscall_chdir (struct intr_frame *)
+syscall_chdir (struct intr_frame *f)
 {
 	const char *dir;
 	memcpy (&dir, f->esp+4, sizeof(char *));
@@ -617,7 +620,7 @@ syscall_chdir (struct intr_frame *)
 }
 
 static void
-syscall_mkdir (struct intr_frame *) 
+syscall_mkdir (struct intr_frame *f) 
 {
 	const char *dir;
 	memcpy (&dir, f->esp+4, sizeof(char *));
@@ -628,7 +631,6 @@ syscall_mkdir (struct intr_frame *)
 	}
 	
 	struct dir *base;
-	struct dir *dir;
 	char *new_dir;
 	char *delim;
 	size_t len = strlen (dir) + 1;
@@ -672,7 +674,7 @@ syscall_mkdir (struct intr_frame *)
 									&& dir_add (base, new_dir, inode_sector));
 
 	/* If it fails allocation */
-	 * //inode_sector check? 
+	 //inode_sector check? 
 	if (!success) 
 		free_map_release (inode_sector, 1);
 
@@ -691,7 +693,7 @@ syscall_mkdir (struct intr_frame *)
 }
 
 static void
-syscall_readdir (struct intr_frame *)
+syscall_readdir (struct intr_frame *f)
 {
 	int fd;
 	char *name;
@@ -715,13 +717,13 @@ syscall_readdir (struct intr_frame *)
 	if (!dir_get_inode(new)->is_dir) {
 		f->eax = false;
 		return;
-	
+	}
 	f->eax = dir_readdir (new, name);	
 	return;
 }
 
 static void
-syscall_isdir (struct intr_frame *)
+syscall_isdir (struct intr_frame *f)
 {
 	int fd;
 	memcpy (&fd, f->esp+4, sizeof(int));
@@ -744,7 +746,7 @@ syscall_isdir (struct intr_frame *)
 }
 
 static void
-syscall_inumber (struct intr_frame *)
+syscall_inumber (struct intr_frame *f)
 {
 	int fd;
 	memcpy(&fd, f->esp+4, sizeof(int));

@@ -88,7 +88,6 @@ inode_create (disk_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-			disk_inode->is_dir = false;
       if (free_map_allocate (sectors, &disk_inode->start))
         {
           disk_write (filesys_disk, sector, disk_inode);
@@ -139,6 +138,7 @@ inode_open (disk_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+	inode->is_dir = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
   return inode;
 }
