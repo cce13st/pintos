@@ -110,10 +110,13 @@ filesys_open (const char *name)
 //printf("buf : %s, file : %s\n", buf, name+pos+1);
 //printf("dir inode : %x\n", dir_get_inode(dir));
 
-
   if (dir != NULL)
     dir_lookup (dir, name+pos+1, &inode);
-  dir_close (dir);
+	else {
+		dir_close (dir);
+		return NULL;
+	}
+	dir_close (dir);
 //printf("is dir : %d\n", inode_is_dir(inode));
 //printf("inode : %x\n", inode);
   return file_open (inode);
@@ -127,7 +130,7 @@ bool
 filesys_remove (const char *name) 
 {
 //  struct dir *dir = dir_open_root ();
-  
+ 	//printf ("filesys_remove\n"); 
 	char buf[128];
 	int pos = path_cut (name, buf);
 	struct dir *dir;
@@ -138,9 +141,12 @@ filesys_remove (const char *name)
 	} else {	
 		dir = get_directory (buf,*name != '/');
 	}
+
+	if (strlen (name) == 2 && name[0] == '/')
+		pos = 0;
+	
 	bool success = dir != NULL && dir_remove (dir, name+pos+1);
   dir_close (dir); 
-
   return success;
 }
 

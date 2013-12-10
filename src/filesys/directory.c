@@ -129,8 +129,8 @@ dir_lookup (const struct dir *dir, const char *name,
             struct inode **inode) 
 {
   struct dir_entry e;
-
-  ASSERT (dir != NULL);
+  
+	ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
   if (lookup (dir, name, &e, NULL))
@@ -282,9 +282,10 @@ get_directory (char *path, bool absolute)
 
 	if (!absolute && path[0] == '/')
 		++pos;
-
 	while (true)
 	{
+		if (target == NULL)
+			return NULL;
 		pos = path_parse (path, pos, buf);
 		if (pos == -1)
 			break;
