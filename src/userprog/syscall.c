@@ -213,8 +213,14 @@ syscall_write (struct intr_frame *f)
 		struct file *target_file;
 		target_file = find_by_fd (fd)->f;
 
+//printf("file's inode : %x\n", file_get_inode (target_file));
+//printf("inode is dir? %d\n", inode_is_dir (file_get_inode (target_file)));
+
+
 		if(!target_file)
 			f->eax = -1;
+	//	else if (inode_is_dir (file_get_inode (target_file)))
+	//		f->eax = -1;
 		else 
 			f->eax = file_write(target_file, buffer, size);
 	}
@@ -426,7 +432,7 @@ find_by_mapid (int mapid)
 	  
 		ittr = list_next (ittr);
 	}
-	printf ("Find mapid failed!\n");
+	//printf ("Find mapid failed!\n");
 	return NULL;
 }
 
@@ -536,10 +542,17 @@ syscall_munmap (int mapid)
 }
 
 int
-path_cut (char *name)
+path_cut (char *name, char *buf)
 {
-	int pos = (int) strrchr (name, '/');
-	pos -= (int) name;
+	int pos, i;
+	for (pos = strlen (name)-1; pos>0; pos--)
+		if (name[pos] == '/')
+			break;
+	
+	for (i=0; i<pos; i++)
+		buf[i] = name[i];
+	buf[pos] = 0;
+	
 	return pos;
 }
 
@@ -619,7 +632,7 @@ syscall_mkdir (struct intr_frame *f)
 	if (delim == NULL)
 	{
 		new_dir = dir;
-		base = dir_open (inode_open (thread_current ()->cur_dir));
+		base = dir_open_curr ();
 	}
 	/* directory name which end with '/' */
 	else if (*(delim+1) == '\0') {
@@ -648,7 +661,7 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* add up the new dir */
 	bool success = (free_map_allocate (1, &inode_sector)
-									&& dir_create (inode_sector, 2)
+									&& dir_create (inode_sector, 16)
 									&& dir_add (base, new_dir, inode_sector));
 
 	/* If it fails allocation */
@@ -662,7 +675,9 @@ syscall_mkdir (struct intr_frame *f)
 		dir_add (new, ".", inode_sector);
 		dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
 		inode_set_is_dir(dir_get_inode(new), true);
-		dir_close (new);
+//	printf("mkdir set is dir : %d\n", inode_is_dir (dir_get_inode(new)));
+//printf("mkdir inode : %x\n", dir_get_inode (new));
+	dir_close (new);
 	}
 	dir_close (base);
 
@@ -744,7 +759,6 @@ syscall_inumber (struct intr_frame *f)
 
 	f->eax = inode_get_inumber (file_get_inode (target_file));
 	return;
-	
 }
 
 

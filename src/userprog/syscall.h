@@ -5,9 +5,9 @@ void syscall_init (void);
 void syscall_exit (int);
 void syscall_munmap (int);
 
-int path_cut (char *);
+int path_cut (char *, char *);
 int path_parse (char *, int, char *);
-bool path_abs (char *);
+//bool path_abs (char *);
 
 #endif /* userprog/syscall.h */
 
