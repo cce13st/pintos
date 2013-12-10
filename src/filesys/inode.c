@@ -6,12 +6,10 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "filesys/cache.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-
-/* Define Disk cache buffer size */
-#define CACHE_SIZE 128
 
 /* On-disk inode.
    Must be exactly DISK_SECTOR_SIZE bytes long. */
@@ -21,12 +19,6 @@ struct inode_disk
     unsigned magic;                     /* Magic number. */
 		uint16_t index[252];
   };
-
-static int cache_find (disk_sector_t);
-static void cache_read (disk_sector_t, off_t, char *, int);
-static void cache_write (disk_sector_t, off_t, char *, int);
-static int cache_get (void);
-static void cache_out (int);
 
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
@@ -273,7 +265,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-	int a = size;
   if (inode->deny_write_cnt)
     return 0;
 
@@ -317,7 +308,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (chunk_size <= 0)
         break;
 			
-			printf ("write on sector %d\n", sector_idx);
 			cache_write (sector_idx, sector_ofs, buffer + bytes_written, chunk_size);
 
       /* Advance. */
@@ -356,111 +346,4 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
-}
-
-void
-cache_init ()
-{
-	int i;
-	rucnt = 1;		// Recently used count
-	cdata = malloc (DISK_SECTOR_SIZE * CACHE_SIZE);		// actual disk data
-	cidx = calloc (sizeof (int), CACHE_SIZE);				// sector index
-	cvalid = malloc (sizeof (bool) * CACHE_SIZE);
-	cdirty = malloc (sizeof (bool) * CACHE_SIZE);			// dirty bit
-	cused = malloc (sizeof (int) * CACHE_SIZE);			// store rucnt for LRU eviction policy
-	for (i=0; i<CACHE_SIZE; i++)
-		cvalid[i] = false;
-}
-
-static int
-cache_find (disk_sector_t sector_idx)
-{
-	int i;
-	for (i=0; i<CACHE_SIZE; i++)
-		if (cidx[i] == sector_idx && cvalid[i])
-			return i;
-
-	return -1;
-}
-
-static void
-cache_read (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
-{
-	int target = cache_find (sector_idx);
-	printf ("cache_read %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
-	if (target != -1)
-	{
-		cused[target] = rucnt++;
-		memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
-		return;
-	}
-	
-	/* else, find from disk */
-	int empty = cache_get ();
-	cused[empty] = rucnt++;
-	cidx[empty] = sector_idx;
-	cvalid[empty] = true;
-	cdirty[empty] = false;
-  disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
-	
-	memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
-	//hex_dump (buf, buf, 512, true);
-}
-
-static void
-cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
-{
-	int target = cache_find (sector_idx);
-	printf ("cache_write %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
-	printf ("ofs %d, size %d buf %s\n", ofs, size, buf);
-	if (target != -1)
-	{
-		cused[target] = rucnt++;
-		cdirty[target] = true;
-		memcpy (cdata + target * DISK_SECTOR_SIZE + ofs, buf, size);
-		//hex_dump (cdata+target*DISK_SECTOR_SIZE, cdata+target*DISK_SECTOR_SIZE, 512, true);
-		return;
-	}
-	
-	/* else, find from disk */
-	int empty = cache_get ();
-	cused[empty] = rucnt++;
-	cidx[empty] = sector_idx;
-	cvalid[empty] = true;
-	cdirty[empty] = true;
-  disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
-	
-	memcpy (cdata + target * DISK_SECTOR_SIZE + ofs, buf, size);
-	//hex_dump (cdata+target*DISK_SECTOR_SIZE, cdata+target*DISK_SECTOR_SIZE, 512, true);
-}
-
-static int
-cache_get ()
-{
-	int i;
-	for (i=0; i<CACHE_SIZE; i++)
-		if (!cvalid[i])
-			return i;
-	
-	/* Eviction process */
-	int max = 0, midx = 0;
-	for (i=0; i<CACHE_SIZE; i++){
-		if (max < cused[i]){
-			midx = i;
-			max = cused[i];
-		}
-	}
-
-	cache_out (midx);
-	return midx;
-}
-
-static void
-cache_out (int target)
-{
-	printf ("cache_out %d\n", cidx[target]);
-	cvalid[target] = false;
-
-	if (cdirty[target])
-		disk_write (filesys_disk, cidx[target], cdata + target * DISK_SECTOR_SIZE);
 }
