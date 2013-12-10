@@ -17,8 +17,7 @@ struct inode_disk
     disk_sector_t start;                /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[124];               /* Not used. */
-  	bool is_dir;												/* false : file, true : directory */
+    uint32_t unused[125];               /* Not used. */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -37,6 +36,7 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+  	bool is_dir;												/* false : file, true : directory */
     struct inode_disk data;             /* Inode content. */
 	};
 
@@ -88,7 +88,6 @@ inode_create (disk_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-			disk_inode->is_dir = false;
       if (free_map_allocate (sectors, &disk_inode->start))
         {
           disk_write (filesys_disk, sector, disk_inode);
@@ -139,6 +138,7 @@ inode_open (disk_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+	inode->is_dir = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
   return inode;
 }
@@ -348,11 +348,11 @@ inode_length (const struct inode *inode)
 bool
 inode_is_dir (struct inode *inode)
 {
-	return inode->data.is_dir;
+	return inode->is_dir;
 }
 
 void
 inode_set_is_dir (struct inode *inode, bool boolean)
 {
-	inode->data.is_dir = boolean;
+	inode->is_dir = boolean;
 }
