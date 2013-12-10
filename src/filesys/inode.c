@@ -345,3 +345,15 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+
+bool
+inode_is_dir (struct inode *inode)
+{
+	return inode->is_dir;
+}
+
+void
+inode_set_is_dir (struct inode *inode, bool boolean)
+{
+	inode->is_dir = boolean;
+}

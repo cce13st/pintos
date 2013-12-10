@@ -252,3 +252,40 @@ dir_is_empty (struct dir *dir)
 }
 */
 
+/*make get_directory method to implement easily */
+struct dir*
+get_directory (char *path, bool absolute) 
+{
+	// how about "cd   " -> path is null and path is root
+	struct dir *base, *target, *prev;
+	if (absolute)
+		base = dir_open_root ();
+	else 
+		base = dir_open (inode_open  (thread_current ()->cur_dir));
+
+	if (strlen(path) !=1 && strrchr (path,'/')!=NULL && *(strrchr (path, '/') +1) == '\0') {
+		dir_close(base);
+		return NULL;
+	}
+
+	struct inode *inode;
+	int pos = 0;
+	char buf[17];
+	target = base;
+
+	//parsing the path
+	while (true)
+	{
+		pos = path_parse (path, pos, buf);
+		printf ("get_dir : buf %s, pos %d\n", buf, pos);
+		if (pos == -1)
+			break;
+		/* Search directory to use buf */
+		prev = target;
+		dir_lookup (target, buf, &inode);
+		target = dir_open (inode);
+		dir_close (prev);
+	}
+	printf ("target %x\n", target);	
+	return target;
+}

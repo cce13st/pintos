@@ -7,8 +7,8 @@
 #include "userprog/pagedir.h"
 #include "filesys/off_t.h"
 #include "vm/page.h"
-#include "filesys/directory.c"
-#include "filesys/inode.c"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 #include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -26,9 +26,6 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 static void syscall_mmap (struct intr_frame *);
-
-static struct dir *get_directory (char *, bool);
-static bool abs (char *);
 
 static void syscall_chdir (struct intr_frame *);
 static void syscall_mkdir (struct intr_frame *);
@@ -275,8 +272,10 @@ syscall_open (struct intr_frame *f)
 	struct file *target_file;
 	struct file_info *fip;
 	t = thread_current();
+//printf("%s\n", file);
 	target_file = filesys_open(file);
-	
+
+//printf("%d\n", target_file == NULL);
 	if (target_file == NULL){
 		f->eax = -1;
 		lock_release (&syscall_lock);
@@ -536,41 +535,15 @@ syscall_munmap (int mapid)
 	mip->mapid = -1;
 }
 
-
-/*make get_directory method to implement easily */
-static struct dir*
-get_directory (char *path, bool absolute) 
+int
+path_cut (char *name)
 {
-	// how about "cd   " -> path is null and path is root
-	struct dir *base, *target, *prev;
-	if (absolute)
-		base = dir_open_root ();
-	else 
-		base = dir_open (inode_open  (thread_current ()->cur_dir));
-	//TODO: dir_close(base) and dir_open(new inode)
-	// Maybe does in while loop
-
-	struct inode *inode;
-	int pos = 0;
-	char buf[17];
-	target = base;
-	//parsing the path
-	while (true)
-	{
-		pos = path_parse (path, pos, buf);
-		if (pos == -1)
-			break;
-		/* Search directory to use buf */
-		prev = target;
-		dir_lookup (target, buf, &inode);
-		target = dir_open (inode);
-		dir_close (prev);
-	}
-
-	return target;
+	int pos = (int) strrchr (name, '/');
+	pos -= (int) name;
+	return pos;
 }
 
-static int
+int
 path_parse (char *name, int pos, char *buf)
 {
 	int i = 0;
@@ -585,11 +558,13 @@ path_parse (char *name, int pos, char *buf)
 		}
 		buf[i++] = name[pos++];
 	}
+
+	buf[i] = 0;
 	return pos;
 }
 
 /*make the method to check whether path is absolute or not */
-static bool
+bool
 path_abs (char *path)
 {
 	return (path[0] == '/');
@@ -598,22 +573,25 @@ path_abs (char *path)
 static void
 syscall_chdir (struct intr_frame *f)
 {
-	const char *dir;
-	memcpy (&dir, f->esp+4, sizeof(char *));
+	const char *name;
+	memcpy (&name, f->esp+4, sizeof(char *));
 	
-	if (dir == NULL) {
+
+	if (name == NULL || *name =='\0') {
 		f->eax = false;
 		return;
 	}
 
 	struct dir *new;
-	new = get_directory (dir, path_abs (dir));
+	new = get_directory (name, path_abs (name));
 	if (new == NULL) {
 		f->eax = false;
 		return ;
 	}
 
 	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
+//printf("%d\n", inode_is_dir(dir_get_inode(new)));	
+	
 	dir_close (new);
 	f->eax = true;
 	return;
@@ -625,28 +603,28 @@ syscall_mkdir (struct intr_frame *f)
 	const char *dir;
 	memcpy (&dir, f->esp+4, sizeof(char *));
 
-	if (dir == NULL) {
+	if (dir == NULL || *dir =='\0') {
 		f->eax = false;
 		return ;
 	}
 	
 	struct dir *base;
-	char *new_dir;
-	char *delim;
+	char *new_dir, *delim, *temp;
 	size_t len = strlen (dir) + 1;
-	char temp[len];
-	
+	temp = malloc (sizeof (len));
+
 	delim = strrchr (dir, '/');
+
+	/* add the new directory in the current dir */
+	if (delim == NULL)
+	{
+		new_dir = dir;
+		base = dir_open (inode_open (thread_current ()->cur_dir));
+	}
 	/* directory name which end with '/' */
-	if (*(delim+1) == '\0') {
+	else if (*(delim+1) == '\0') {
 		f->eax = false;
 		return;
-	}
-	/* add the new directory in the current dir */
-	else if (delim == NULL)
-	{
-		base = dir_open (inode_open (thread_current ()->cur_dir));
-
 	}
 	/* add the new direnctory in the difference dir */
 	else {
@@ -675,16 +653,16 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* If it fails allocation */
 	 //inode_sector check? 
-	if (!success) 
+	if (!success && inode_sector!= 0) 
 		free_map_release (inode_sector, 1);
 
 	/* add up the '.', '..' directory in the new_dir */	
 	else {
-	struct dir *new = dir_open ( inode_open (inode_sector));
-	dir_add (new, ".", inode_sector);
-	dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
-	new->inode->is_dir = true;
-	dir_close (new);
+		struct dir *new = dir_open ( inode_open (inode_sector));
+		dir_add (new, ".", inode_sector);
+		dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
+		inode_set_is_dir(dir_get_inode(new), true);
+		dir_close (new);
 	}
 	dir_close (base);
 
@@ -714,7 +692,7 @@ syscall_readdir (struct intr_frame *f)
 	}
  	struct dir *new = (struct dir *) target_file;
 	
-	if (!dir_get_inode(new)->is_dir) {
+	if (!inode_is_dir(dir_get_inode(new))) {
 		f->eax = false;
 		return;
 	}
@@ -741,7 +719,7 @@ syscall_isdir (struct intr_frame *f)
 		return;
 	}
 
-	f->eax = (file_get_inode (target_file))->is_dir;
+	f->eax = inode_is_dir((file_get_inode (target_file)));
 	return;
 }
 
