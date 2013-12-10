@@ -36,8 +36,8 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-  	bool is_dir;												/* false : file, true : directory */
     struct inode_disk data;             /* Inode content. */
+		bool is_dir;
 	};
 
 /* Returns the disk sector that contains byte offset POS within

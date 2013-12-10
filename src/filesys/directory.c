@@ -275,13 +275,14 @@ get_directory (char *path, bool absolute)
 		dir_close(base);
 		return NULL;
 	}
-
 	struct inode *inode;
 	int pos = 0;
 	char buf[17];
 	target = base;
 
-	//parsing the path
+	if (!absolute && path[0] == '/')
+		++pos;
+
 	while (true)
 	{
 		pos = path_parse (path, pos, buf);

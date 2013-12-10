@@ -57,7 +57,7 @@ filesys_create (const char *name, off_t initial_size)
 		dir = dir_open_root ();
 		pos = -1;
 	} else {	
-		dir = get_directory (buf,*name == '/');
+		dir = get_directory (buf,*name != '/');
 	}
 
   //struct dir *dir = dir_open_root ();
@@ -105,7 +105,7 @@ filesys_open (const char *name)
 		pos = -1;
 		//printf("here?\n");
 	} else {	
-		dir = get_directory (buf,*name == '/');
+		dir = get_directory (buf,*name != '/');
 	}
 //printf("buf : %s, file : %s\n", buf, name+pos+1);
 //printf("dir inode : %x\n", dir_get_inode(dir));
@@ -136,7 +136,7 @@ filesys_remove (const char *name)
 		//dir = dir_open_root ();
 		pos = -1;
 	} else {	
-		dir = get_directory (buf,*name == '/');
+		dir = get_directory (buf,*name != '/');
 	}
 	bool success = dir != NULL && dir_remove (dir, name+pos+1);
   dir_close (dir); 

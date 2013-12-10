@@ -219,8 +219,8 @@ syscall_write (struct intr_frame *f)
 
 		if(!target_file)
 			f->eax = -1;
-	//	else if (inode_is_dir (file_get_inode (target_file)))
-	//		f->eax = -1;
+		else if (inode_is_dir (file_get_inode (target_file)))
+			f->eax = -1;
 		else 
 			f->eax = file_write(target_file, buffer, size);
 	}
@@ -580,7 +580,7 @@ path_parse (char *name, int pos, char *buf)
 bool
 path_abs (char *path)
 {
-	return (path[0] == '/');
+	return !(path[0] == '/');
 }
 
 static void
@@ -601,7 +601,6 @@ syscall_chdir (struct intr_frame *f)
 		f->eax = false;
 		return ;
 	}
-
 	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
 //printf("%d\n", inode_is_dir(dir_get_inode(new)));	
 	
@@ -622,17 +621,16 @@ syscall_mkdir (struct intr_frame *f)
 	}
 	
 	struct dir *base;
-	char *new_dir, *delim, *temp;
+	char *new_dir, *delim;
 	size_t len = strlen (dir) + 1;
-	temp = malloc (sizeof (len));
 
 	delim = strrchr (dir, '/');
-
 	/* add the new directory in the current dir */
 	if (delim == NULL)
 	{
 		new_dir = dir;
-		base = dir_open_curr ();
+
+		base = dir_open_root ();
 	}
 	/* directory name which end with '/' */
 	else if (*(delim+1) == '\0') {
@@ -641,15 +639,14 @@ syscall_mkdir (struct intr_frame *f)
 	}
 	/* add the new direnctory in the difference dir */
 	else {
-		strlcpy (temp, dir, len);
-		delim = strrchr (temp, '/');
-		new_dir = strtok_r (NULL, '/', &delim);
-		*delim = '\0';
-
+		char buf[128];
+		int pos = path_cut(dir,buf);
+		new_dir = dir+pos+1;
+		//printf ("buf : %s temp : %s\n", buf, dir);
 		if (path_abs (dir))
-			base = get_directory (temp, true);
+			base = get_directory (buf, true);
 		else
-			base = get_directory (temp, false);
+			base = get_directory (buf, false);
 	}
 	
 	if (base == NULL) {
@@ -661,9 +658,8 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* add up the new dir */
 	bool success = (free_map_allocate (1, &inode_sector)
-									&& dir_create (inode_sector, 16)
+									&& dir_create (inode_sector, 32)
 									&& dir_add (base, new_dir, inode_sector));
-
 	/* If it fails allocation */
 	 //inode_sector check? 
 	if (!success && inode_sector!= 0) 
@@ -680,7 +676,6 @@ syscall_mkdir (struct intr_frame *f)
 	dir_close (new);
 	}
 	dir_close (base);
-
 	f->eax = success;
 	return;
 }
