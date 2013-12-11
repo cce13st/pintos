@@ -6,6 +6,9 @@
 #include "devices/disk.h"
 #endif /* filesys/inode.h */
 
+/* Define Disk cache buffer size */
+#define CACHE_SIZE 128
+
 char *cdata;
 disk_sector_t *cidx;
 bool *cvalid;

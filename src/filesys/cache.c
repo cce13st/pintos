@@ -8,9 +8,6 @@
 #include "threads/malloc.h"
 #include "filesys/cache.h"
 
-/* Define Disk cache buffer size */
-#define CACHE_SIZE 128
-
 void
 cache_init ()
 {
