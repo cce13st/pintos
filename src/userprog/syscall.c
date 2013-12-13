@@ -7,6 +7,9 @@
 #include "userprog/pagedir.h"
 #include "filesys/off_t.h"
 #include "vm/page.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 static void syscall_halt (struct intr_frame *);
@@ -23,6 +26,13 @@ static void syscall_tell (struct intr_frame *);
 static void syscall_close (struct intr_frame *);
 static void syscall_filesize (struct intr_frame *);
 static void syscall_mmap (struct intr_frame *);
+
+static void syscall_chdir (struct intr_frame *);
+static void syscall_mkdir (struct intr_frame *);
+static void syscall_readdir (struct intr_frame *);
+static void syscall_isdir (struct intr_frame *);
+static void syscall_inumber (struct intr_frame *);
+
 
 struct file_info * find_by_fd(int);
 
@@ -109,6 +119,21 @@ syscall_handler (struct intr_frame *f UNUSED)
 		case SYS_MUNMAP:
 			syscall_munmap (*(int *)(f->esp+4));
 			break;
+		case SYS_CHDIR:
+			syscall_chdir (f);
+			break;
+		case SYS_MKDIR:
+			syscall_mkdir (f);
+			break;
+		case SYS_READDIR:
+			syscall_readdir (f);
+			break;
+		case SYS_ISDIR:
+			syscall_isdir (f);
+			break;
+		case SYS_INUMBER:
+			syscall_inumber (f);
+			break;
 	}
 }
 
@@ -189,9 +214,15 @@ syscall_write (struct intr_frame *f)
 		struct file *target_file;
 		target_file = find_by_fd (fd)->f;
 
+//printf("file's inode : %x\n", file_get_inode (target_file));
+//printf("inode is dir? %d\n", inode_is_dir (file_get_inode (target_file)));
+
+
 		if(!target_file)
 			f->eax = -1;
-		else{
+		else if (inode_is_dir (file_get_inode (target_file)))
+			f->eax = -1;
+		else { 
 			lock_acquire (&rw_lock);
 			f->eax = file_write(target_file, buffer, size);
 			lock_release (&rw_lock);
@@ -251,8 +282,10 @@ syscall_open (struct intr_frame *f)
 	struct file *target_file;
 	struct file_info *fip;
 	t = thread_current();
+//printf("%s\n", file);
 	target_file = filesys_open(file);
-	
+
+//printf("%d\n", target_file == NULL);
 	if (target_file == NULL){
 		f->eax = -1;
 		lock_release (&syscall_lock);
@@ -409,7 +442,7 @@ find_by_mapid (int mapid)
 	  
 		ittr = list_next (ittr);
 	}
-	printf ("Find mapid failed!\n");
+	//printf ("Find mapid failed!\n");
 	return NULL;
 }
 
@@ -517,3 +550,224 @@ syscall_munmap (int mapid)
 	file_seek (mip->f, offs);
 	mip->mapid = -1;
 }
+
+int
+path_cut (char *name, char *buf)
+{
+	int pos, i;
+	for (pos = strlen (name)-1; pos>0; pos--)
+		if (name[pos] == '/')
+			break;
+	
+	for (i=0; i<pos; i++)
+		buf[i] = name[i];
+	buf[pos] = 0;
+	
+	return pos;
+}
+
+int
+path_parse (char *name, int pos, char *buf)
+{
+	int i = 0;
+	if (name[pos] == NULL)
+		return -1;
+
+	while (pos < strlen (name))
+	{
+		if (name[pos] == '/'){
+			pos++;
+			break;
+		}
+		buf[i++] = name[pos++];
+	}
+
+	buf[i] = 0;
+	return pos;
+}
+
+/*make the method to check whether path is absolute or not */
+bool
+path_abs (char *path)
+{
+	return !(path[0] == '/');
+}
+
+static void
+syscall_chdir (struct intr_frame *f)
+{
+	const char *name;
+	memcpy (&name, f->esp+4, sizeof(char *));
+	
+
+	if (name == NULL || *name =='\0') {
+		f->eax = false;
+		return;
+	}
+
+	struct dir *new;
+	new = get_directory (name, path_abs (name));
+	if (new == NULL) {
+		f->eax = false;
+		return ;
+	}
+	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
+//printf("%d\n", inode_is_dir(dir_get_inode(new)));	
+	
+	dir_close (new);
+	f->eax = true;
+	return;
+}
+
+static void
+syscall_mkdir (struct intr_frame *f) 
+{
+	const char *dir;
+	memcpy (&dir, f->esp+4, sizeof(char *));
+
+	if (dir == NULL || *dir =='\0') {
+		f->eax = false;
+		return ;
+	}
+	
+	struct dir *base;
+	char *new_dir, *delim;
+	size_t len = strlen (dir) + 1;
+
+	delim = strrchr (dir, '/');
+	/* add the new directory in the current dir */
+	if (delim == NULL)
+	{
+		new_dir = dir;
+
+		base = dir_open_root ();
+	}
+	/* directory name which end with '/' */
+	else if (*(delim+1) == '\0') {
+		f->eax = false;
+		return;
+	}
+	/* add the new direnctory in the difference dir */
+	else {
+		char buf[128];
+		int pos = path_cut(dir,buf);
+		new_dir = dir+pos+1;
+		//printf ("buf : %s temp : %s\n", buf, dir);
+		if (path_abs (dir))
+			base = get_directory (buf, true);
+		else
+			base = get_directory (buf, false);
+	}
+	
+	if (base == NULL) {
+		f->eax = false;
+		return;
+	}
+	
+	disk_sector_t inode_sector;
+
+	/* add up the new dir */
+	bool success = (free_map_allocate (1, &inode_sector)
+									&& dir_create (inode_sector, 32)
+									&& dir_add (base, new_dir, inode_sector));
+	/* If it fails allocation */
+	 //inode_sector check? 
+	if (!success && inode_sector!= 0) 
+		free_map_release (inode_sector, 1);
+
+	/* add up the '.', '..' directory in the new_dir */	
+	else {
+		struct dir *new = dir_open ( inode_open (inode_sector));
+		dir_add (new, ".", inode_sector);
+		dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
+		inode_set_is_dir(dir_get_inode(new), true);
+//	printf("mkdir set is dir : %d\n", inode_is_dir (dir_get_inode(new)));
+//printf("mkdir inode : %x\n", dir_get_inode (new));
+	dir_close (new);
+	}
+	dir_close (base);
+	f->eax = success;
+	return;
+}
+
+static void
+syscall_readdir (struct intr_frame *f)
+{
+	int fd;
+	char *name;
+	memcpy (&fd, f->esp+4, sizeof (int));
+	memcpy (&name, f->esp+8, sizeof (char));
+
+ 	if (!validate_fd(fd) || name == NULL) {
+		f->eax = false;
+		return;
+	}
+	
+	struct file *target_file;
+ 	target_file = find_by_fd (fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+ 	struct dir *new = (struct dir *) target_file;
+	
+	if (!inode_is_dir(dir_get_inode(new))) {
+		f->eax = false;
+		return;
+	}
+	f->eax = dir_readdir (new, name);	
+	return;
+}
+
+static void
+syscall_isdir (struct intr_frame *f)
+{
+	int fd;
+	memcpy (&fd, f->esp+4, sizeof(int));
+	
+	if (!validate_fd(fd)) {
+		f->eax = false;
+		return;
+	}
+	
+	struct file *target_file;
+	target_file = find_by_fd(fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+
+	f->eax = inode_is_dir((file_get_inode (target_file)));
+	return;
+}
+
+static void
+syscall_inumber (struct intr_frame *f)
+{
+	int fd;
+	memcpy(&fd, f->esp+4, sizeof(int));
+	
+	if (!validate_fd(fd)) {
+		f->eax = false;
+		return;
+	}
+
+	struct file *target_file;
+	target_file = find_by_fd (fd)->f;
+
+	if (target_file == NULL) {
+		f->eax = false;
+		return;
+	}
+
+	f->eax = inode_get_inumber (file_get_inode (target_file));
+	return;
+}
+
+
+
+
+
+

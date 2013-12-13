@@ -37,7 +37,8 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-  };
+		bool is_dir;
+	};
 
 /* Returns the disk sector that contains byte offset POS within
    INODE.
@@ -189,6 +190,7 @@ inode_open (disk_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+	inode->is_dir = false;
   disk_read (filesys_disk, inode->sector, &inode->data);
   return inode;
 }
@@ -305,7 +307,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
-
   if (inode->deny_write_cnt)
     return 0;
 
@@ -419,4 +420,16 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+bool
+inode_is_dir (struct inode *inode)
+{
+	return inode->is_dir;
+}
+
+void
+inode_set_is_dir (struct inode *inode, bool boolean)
+{
+	inode->is_dir = boolean;
 }

@@ -25,4 +25,6 @@ disk_sector_t *cidx;
 bool *cdirty;
 int rucnt;
 int *cused;
+bool inode_is_dir (struct inode *);
+void inode_set_is_dir (struct inode *, bool);
 #endif /* filesys/inode.h */

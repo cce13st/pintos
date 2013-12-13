@@ -7,6 +7,7 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "devices/disk.h"
+#include "threads/thread.h"
 
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
@@ -47,12 +48,36 @@ bool
 filesys_create (const char *name, off_t initial_size) 
 {
   disk_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
-  bool success = (dir != NULL
+
+	char buf[128];
+	int pos = path_cut (name, buf);
+	struct dir *dir;
+	if (pos == 0) {
+		//dir = dir_open(inode_open (thread_current()->cur_dir));
+		dir = dir_open_root ();
+		pos = -1;
+	} else {	
+		dir = get_directory (buf,*name != '/');
+	}
+
+  //struct dir *dir = dir_open_root ();
+  
+	bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0) 
+                  && dir_add (dir, name+pos+1, inode_sector));
+
+//printf("create inode : %x\n", dir_get_inode(dir));
+/*
+	bool success, dirn, freemap, inode, diradd;
+	dirn = (dir != NULL);
+	freemap = (bool) free_map_allocate (1, &inode_sector);
+	inode = (bool) inode_create (inode_sector, initial_size);
+	diradd = (bool) dir_add (dir, name+pos+1, inode_sector);
+	success = dir && freemap && inode && diradd;
+	printf ("dir %d, freemap %d, inode %d, diradd %d\n", dirn, freemap, inode, diradd);
+*/  
+	if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
 
@@ -67,13 +92,33 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+ // struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
-  if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
+	char buf[128];
+	int pos = path_cut (name, buf);
+	struct dir *dir;
+	if (pos == 0) {
+		dir = dir_open(inode_open (thread_current()->cur_dir));
+		
+		//dir = dir_open_root ();
+		pos = -1;
+		//printf("here?\n");
+	} else {	
+		dir = get_directory (buf,*name != '/');
+	}
+//printf("buf : %s, file : %s\n", buf, name+pos+1);
+//printf("dir inode : %x\n", dir_get_inode(dir));
 
+  if (dir != NULL)
+    dir_lookup (dir, name+pos+1, &inode);
+	else {
+		dir_close (dir);
+		return NULL;
+	}
+	dir_close (dir);
+//printf("is dir : %d\n", inode_is_dir(inode));
+//printf("inode : %x\n", inode);
   return file_open (inode);
 }
 
@@ -84,10 +129,24 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
+//  struct dir *dir = dir_open_root ();
+ 	//printf ("filesys_remove\n"); 
+	char buf[128];
+	int pos = path_cut (name, buf);
+	struct dir *dir;
+	if (pos == 0) {
+		dir = dir_open(inode_open (thread_current()->cur_dir));
+		//dir = dir_open_root ();
+		pos = -1;
+	} else {	
+		dir = get_directory (buf,*name != '/');
+	}
 
+	if (strlen (name) == 2 && name[0] == '/')
+		pos = 0;
+	
+	bool success = dir != NULL && dir_remove (dir, name+pos+1);
+  dir_close (dir); 
   return success;
 }
 
