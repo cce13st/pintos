@@ -5,7 +5,6 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
-#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -56,14 +55,6 @@ struct dir *
 dir_open_root (void)
 {
   return dir_open (inode_open (ROOT_DIR_SECTOR));
-}
-
-/* Opens the current directory and returns a directory for it.
-   Return true if successful, false on failure. */
-struct dir *
-dir_open_curr (void)
-{
-  return dir_open (inode_open (thread_current ()->cur_dir));
 }
 
 /* Opens and returns a new directory for the same inode as DIR.
@@ -129,8 +120,8 @@ dir_lookup (const struct dir *dir, const char *name,
             struct inode **inode) 
 {
   struct dir_entry e;
-  
-	ASSERT (dir != NULL);
+
+  ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
   if (lookup (dir, name, &e, NULL))
@@ -182,6 +173,7 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector)
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+
  done:
   return success;
 }
@@ -241,59 +233,4 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
-}
-
-
-/* Check if directory is empty. */
-/*bool
-dir_is_empty (struct dir *dir)
-{
-	struct dir_entry e;
-	off_t ofs;
-
-	for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, os) == sizeof e; ofs+= sizeof e)
-	{
-		if (e.inode_sector)	// If inode sector is not 0, there exists some file(or directory)
-			return false;
-	}	
-	return true;
-}
-*/
-
-/*make get_directory method to implement easily */
-struct dir*
-get_directory (char *path, bool absolute) 
-{
-	// how about "cd   " -> path is null and path is root
-	struct dir *base, *target, *prev;
-	if (absolute)
-		base = dir_open_root ();
-	else 
-		base = dir_open (inode_open  (thread_current ()->cur_dir));
-
-	if (strlen(path) !=1 && strrchr (path,'/')!=NULL && *(strrchr (path, '/') +1) == '\0') {
-		dir_close(base);
-		return NULL;
-	}
-	struct inode *inode;
-	int pos = 0;
-	char buf[17];
-	target = base;
-
-	if (!absolute && path[0] == '/')
-		++pos;
-	while (true)
-	{
-		if (target == NULL)
-			return NULL;
-		pos = path_parse (path, pos, buf);
-		if (pos == -1)
-			break;
-		/* Search directory to use buf */
-		prev = target;
-		dir_lookup (target, buf, &inode);
-		target = dir_open (inode);
-		dir_close (prev);
-	}
-	return target;
 }

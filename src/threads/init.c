@@ -121,10 +121,8 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
- 	/* In Project 4, save the current directory */
-	thread_current () -> cur_dir = inode_get_inumber ( dir_get_inode ( dir_open_root()));
   printf ("Boot complete.\n");
- 
+  
   /* Run actions specified on kernel command line. */
   run_actions (argv);
 

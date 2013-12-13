@@ -126,9 +126,6 @@ struct thread
 		/* Memory Mapping files */
 		struct list mmap_table;
 		int cur_mapid;
-	
-		/* Current directory */
-		uint32_t cur_dir;
 	};
 
 struct thread_info
