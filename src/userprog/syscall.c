@@ -281,7 +281,6 @@ syscall_open (struct intr_frame *f)
 //printf("%s\n", file);
 	target_file = filesys_open(file);
 
-//printf("%d\n", target_file == NULL);
 	if (target_file == NULL){
 		f->eax = -1;
 		lock_release (&syscall_lock);
@@ -580,7 +579,7 @@ path_parse (char *name, int pos, char *buf)
 bool
 path_abs (char *path)
 {
-	return !(path[0] == '/');
+	return (path[0] == '/');
 }
 
 static void
@@ -597,13 +596,16 @@ syscall_chdir (struct intr_frame *f)
 
 	struct dir *new;
 	new = get_directory (name, path_abs (name));
+	printf("name : %s\n", name);
+	printf("%d\n", new == NULL);
 	if (new == NULL) {
 		f->eax = false;
 		return ;
 	}
+//	printf("pass\n");
 	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
 //printf("%d\n", inode_is_dir(dir_get_inode(new)));	
-	
+//	printf("cur_dir : %x\n", thread_current()->cur_dir);
 	dir_close (new);
 	f->eax = true;
 	return;
@@ -705,8 +707,8 @@ syscall_readdir (struct intr_frame *f)
 	if (!inode_is_dir(dir_get_inode(new))) {
 		f->eax = false;
 		return;
-	}
-	f->eax = dir_readdir (new, name);	
+	}	
+	f->eax = dir_readdir (new, name);
 	return;
 }
 
@@ -753,6 +755,7 @@ syscall_inumber (struct intr_frame *f)
 	}
 
 	f->eax = inode_get_inumber (file_get_inode (target_file));
+//	printf("f->eax : %x\n", f->eax);
 	return;
 }
 
