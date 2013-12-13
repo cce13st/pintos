@@ -12,7 +12,7 @@ void frame_init ()
 {
 	int i;
 	frame_alloc = bitmap_create (1024);
-	for (i=0; i<0x28b; i++)
+	for (i=0; i<0x29b; i++)
 		bitmap_set (frame_alloc, i, true);
 	lock_init (&frame_lock);
 	list_init (&frame_list);
