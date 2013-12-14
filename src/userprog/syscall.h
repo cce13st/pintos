@@ -13,3 +13,4 @@ int path_parse (char *, int, char *);
 
 struct lock syscall_lock;
 struct lock mmap_lock;
+struct lock rw_lock;

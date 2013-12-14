@@ -1,5 +1,5 @@
-#ifndef FILESYS_CACHE_H
-#define FILESYS_CACHE_H
+#ifndef FILESYS_INODE_H
+#define FILESYS_INODE_H
 
 #include <stdbool.h>
 #include "filesys/off_t.h"

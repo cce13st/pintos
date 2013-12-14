@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "filesys/inode.h"
 #include "devices/disk.h"
 #include "threads/thread.h"
 
@@ -23,7 +24,8 @@ filesys_init (bool format)
   if (filesys_disk == NULL)
     PANIC ("hd0:1 (hdb) not present, file system initialization failed");
 
-  inode_init ();
+	cache_init ();
+	inode_init ();
   free_map_init ();
 
   if (format) 

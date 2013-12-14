@@ -42,6 +42,7 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 	lock_init (&syscall_lock);
 	lock_init (&mmap_lock);
+	lock_init (&rw_lock);
 }
 
 bool
@@ -139,6 +140,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 static void
 syscall_halt(struct intr_frame *f)
 {
+	/* TODO: cache out */
 	power_off();
 }
 
@@ -195,9 +197,9 @@ syscall_write (struct intr_frame *f)
 	if (!validate_address (buffer))
 	  syscall_exit (-1);
 	
-	//lock_acquire (&syscall_lock);
+	lock_acquire (&syscall_lock);
 	if (! validate_fd (fd)){
-		//lock_release (&syscall_lock);
+		lock_release (&syscall_lock);
 	  f->eax = -1;
   	return;
 	}
@@ -221,10 +223,13 @@ syscall_write (struct intr_frame *f)
 			f->eax = -1;
 		else if (inode_is_dir (file_get_inode (target_file)))
 			f->eax = -1;
-		else 
+		else{
+			lock_acquire (&rw_lock);
 			f->eax = file_write(target_file, buffer, size);
+			lock_release (&rw_lock);
+		}
 	}
-	//lock_release (&syscall_lock);
+	lock_release (&syscall_lock);
 }
 
 static void
@@ -320,6 +325,8 @@ syscall_read (struct intr_frame *f) {
 
   if (!validate_address (buffer) || buffer == NULL)
 	  syscall_exit (-1);
+
+	//lock_acquire (&syscall_lock);
 	if (!validate_fd (fd)){
 	  f->eax = -1;
 		return;
@@ -339,9 +346,13 @@ syscall_read (struct intr_frame *f) {
 		target_file = find_by_fd(fd)->f;
 		if (!target_file)
 			f->eax = -1;
-		else
+		else{
+			lock_acquire (&rw_lock);
 			f->eax = file_read(target_file, buffer, size);
+			lock_release (&rw_lock);
+		}
 	}
+	//lock_release (&syscall_lock);
 }
 
 static void
