@@ -50,8 +50,21 @@ byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
   if (pos < inode->data.length)
-		return inode->data.index[pos/DISK_SECTOR_SIZE];
-    //return inode->data.start + pos / DISK_SECTOR_SIZE;
+	{
+		int i = pos / DISK_SECTOR_SIZE;
+
+		// 250 for double indirect, <= 249 for direct
+		if (i < 250)
+			return inode->data.index[i];
+		else
+		{
+			uint16_t buf[32];
+			disk_read (filesys_disk, inode->data.index[250], buf);
+			i -= 250;
+			disk_read (filesys_disk, buf[i/32], buf);
+			return buf[i%32];
+		}
+	}
   else
     return -1;
 }
@@ -91,26 +104,40 @@ inode_create (disk_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      /*if (free_map_allocate (sectors, &disk_inode->start))
-        {
-          disk_write (filesys_disk, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[DISK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                disk_write (filesys_disk, disk_inode->start + i, zeros); 
-            }
-          success = true; 
-        } */
 
 			int i;
 			static char zeros[DISK_SECTOR_SIZE];
-			for (i=0; i<sectors; i++){
+			/* Direct allocate */
+			for (i=0; i<250 && i<sectors; i++){
 				free_map_allocate (1, disk_inode->index+i);
 				disk_write (filesys_disk, disk_inode->index[i], zeros);
 			}
+			uint16_t buf1[32];
+			uint16_t buf2[32];
+			/* Indirect allocate */
+			for (i=250; i<sectors; i++){
+				if (sectors - i >= 32)
+				{
+					int j;
+					free_map_allocate (1, buf1[(i-250)/32]);
+					for (j=0; j<32; j++)
+						free_map_allocate (1, buf2[j]);
+					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
+					i += 31;
+				}
+				else
+				{
+					int j;
+					free_map_allocate (1, buf1[(i-250)/32]);
+					for (j=0; j<sectors-i; j++){
+						free_map_allocate (1, buf2[j]);
+						disk_write (filesys_disk, buf2[j], zeros);
+					}
+					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
+				}
+				disk_write (filesys_disk, disk_inode->index[250], buf1);
+			}
+
 			disk_write (filesys_disk, sector, disk_inode);
 			success = true;
       free (disk_inode);
