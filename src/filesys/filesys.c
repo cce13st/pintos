@@ -53,44 +53,22 @@ filesys_create (const char *name, off_t initial_size)
 	struct dir *dir;
 	if (pos == 0) {
 		//dir = dir_open(inode_open (thread_current()->cur_dir));
-		dir = dir_open_root ();
-		pos = -1;
+		if (name[0] == '/')
+			dir = dir_open_root ();
+		else {
+			dir = dir_open (inode_open (thread_current ()-> cur_dir));
+			pos = -1;
+		}
 	} else {	
-		dir = get_directory (buf,*name != '/');
+		dir = get_directory (buf,*name == '/');
 	}
 
-  //struct dir *dir = dir_open_root ();
-/*
-char test[18];
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	printf ("create-------------------\n");
-*/  
 	bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size)
                   && dir_add (dir, name+pos+1, inode_sector));
 
 //printf("create inode : %x\n", dir_get_inode(dir));
-/*
-	bool success, dirn, freemap, inode, diradd;
-	dirn = (dir != NULL);
-	freemap = (bool) free_map_allocate (1, &inode_sector);
-	inode = (bool) inode_create (inode_sector, initial_size);
-	diradd = (bool) dir_add (dir, name+pos+1, inode_sector);
-	success = dir && freemap && inode && diradd;
-	printf ("dir %d, freemap %d, inode %d, diradd %d\n", dirn, freemap, inode, diradd);
-*/  
 	if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -114,7 +92,6 @@ filesys_open (const char *name)
 	struct dir *dir;
 //	printf ("filesys_open name %s, buf %s\n", name, buf);	
 	if (pos == 0) {
-		//TODO : change to *name and from == to !=
 		if (name[0] == '/') { 
 			dir = dir_open_root();
 	//		printf("root\n");
@@ -127,37 +104,13 @@ filesys_open (const char *name)
 	}
 	else {
 //		printf("get_directory in open\n");
-		dir = get_directory (buf,*name == '/');
+		dir = get_directory (buf, name[0] == '/');
 	}
-/*	
-	char test[18];
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	dir_readdir (dir, test);
-	printf ("%s\n", test);
-	printf ("-------------------\n");
-//printf("buf : %s, file : %s\n", buf, name+pos+1);
-//printf("dir inode : %x\n", dir_get_inode(dir));
-*/
-  if (dir != NULL) {
+	if (dir != NULL) {
     if (name[0] =='/' && name[1] == 0) 
 			inode = dir_get_inode(dir);
-		else if (!strcmp(name, ".") || !strcmp(name,"..")){
-			dir_close(dir);
-			return NULL;
-		}
 		else{
-//			printf("here, pos : %d, name : %s\n", pos, name+pos+1);
 			dir_lookup (dir, name+pos+1, &inode);
-	//		printf("inode is null? : %d\n", inode == NULL);
 		}
 	}else {
 		dir_close (dir);
@@ -192,7 +145,7 @@ filesys_remove (const char *name)
 	} else {	
 		dir = get_directory (buf,*name == '/');
 	}
-
+	//TODO
 	if (strlen (name) == 2 && name[0] == '/')
 		pos = 0;
 	

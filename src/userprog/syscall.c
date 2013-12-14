@@ -551,7 +551,7 @@ path_cut (char *name, char *buf)
 	for (i=0; i<pos; i++)
 		buf[i] = name[i];
 	buf[pos] = 0;
-	
+
 	return pos;
 }
 
@@ -572,6 +572,7 @@ path_parse (char *name, int pos, char *buf)
 	}
 
 	buf[i] = 0;
+	
 	return pos;
 }
 
@@ -596,14 +597,15 @@ syscall_chdir (struct intr_frame *f)
 
 	struct dir *new;
 	new = get_directory (name, path_abs (name));
-	printf("name : %s\n", name);
-	printf("%d\n", new == NULL);
+	//printf("name : %s\n", name);
+	//printf("%d\n", new == NULL);
+	//
 	if (new == NULL) {
 		f->eax = false;
 		return ;
 	}
 //	printf("pass\n");
-	thread_current ()->cur_dir = inode_get_inumber( dir_get_inode (new));
+	thread_current ()->cur_dir = inode_get_inumber (dir_get_inode (new));
 //printf("%d\n", inode_is_dir(dir_get_inode(new)));	
 //	printf("cur_dir : %x\n", thread_current()->cur_dir);
 	dir_close (new);
@@ -614,43 +616,29 @@ syscall_chdir (struct intr_frame *f)
 static void
 syscall_mkdir (struct intr_frame *f) 
 {
-	const char *dir;
-	memcpy (&dir, f->esp+4, sizeof(char *));
+	const char *name;
+	memcpy (&name, f->esp+4, sizeof(char *));
 
-	if (dir == NULL || *dir =='\0') {
+	if (name == NULL || name[0] =='\0') {
 		f->eax = false;
 		return ;
 	}
 	
 	struct dir *base;
-	char *new_dir, *delim;
-	size_t len = strlen (dir) + 1;
-
-	delim = strrchr (dir, '/');
-	/* add the new directory in the current dir */
-	if (delim == NULL)
-	{
-		new_dir = dir;
-
-		base = dir_open_root ();
-	}
-	/* directory name which end with '/' */
-	else if (*(delim+1) == '\0') {
-		f->eax = false;
-		return;
-	}
-	/* add the new direnctory in the difference dir */
-	else {
-		char buf[128];
-		int pos = path_cut(dir,buf);
-		new_dir = dir+pos+1;
-		//printf ("buf : %s temp : %s\n", buf, dir);
-		if (path_abs (dir))
-			base = get_directory (buf, true);
-		else
-			base = get_directory (buf, false);
-	}
+	char buf[128];
+	int pos = path_cut (name, buf);
 	
+	if (pos == 0){
+		if (name[0] == '/')
+			base = dir_open_root();
+		else{
+			base = dir_open (inode_open (thread_current ()->cur_dir));
+			pos = -1;
+		}
+	}
+	else
+		base = get_directory (buf, name[0] == '/');
+
 	if (base == NULL) {
 		f->eax = false;
 		return;
@@ -660,8 +648,8 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* add up the new dir */
 	bool success = (free_map_allocate (1, &inode_sector)
-									&& dir_create (inode_sector, 32)
-									&& dir_add (base, new_dir, inode_sector));
+									&& dir_create (inode_sector, 16)
+									&& dir_add (base, name+pos+1, inode_sector));
 	/* If it fails allocation */
 	 //inode_sector check? 
 	if (!success && inode_sector!= 0) 
@@ -669,13 +657,11 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* add up the '.', '..' directory in the new_dir */	
 	else {
-		struct dir *new = dir_open ( inode_open (inode_sector));
+		struct dir *new = dir_open (inode_open (inode_sector));
 		dir_add (new, ".", inode_sector);
-		dir_add (new, "..", inode_get_inumber (dir_get_inode(base)));
-		inode_set_is_dir(dir_get_inode(new), true);
-//	printf("mkdir set is dir : %d\n", inode_is_dir (dir_get_inode(new)));
-//printf("mkdir inode : %x\n", dir_get_inode (new));
-	dir_close (new);
+		dir_add (new, "..", inode_get_inumber (dir_get_inode (base)));
+		inode_set_is_dir (dir_get_inode (new), true);
+		dir_close (new);
 	}
 	dir_close (base);
 	f->eax = success;
