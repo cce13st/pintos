@@ -134,6 +134,8 @@ filesys_remove (const char *name)
 	char buf[128];
 	int pos = path_cut (name, buf);
 	struct dir *dir;
+
+
 	if (pos == 0) {
 		if (name[0] == '/')
 			dir = dir_open_root();

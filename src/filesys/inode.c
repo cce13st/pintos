@@ -361,3 +361,9 @@ inode_set_is_dir (struct inode *inode, bool boolean)
 	inode->data.is_dir = boolean;
 	disk_write (filesys_disk, inode->sector, &inode->data);
 }
+
+int
+inode_open_cnt (struct inode *inode)
+{
+	return inode->open_cnt;
+}
