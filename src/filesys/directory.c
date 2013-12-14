@@ -262,8 +262,8 @@ bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
-
-  while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
+	
+	while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
       if (e.in_use && strcmp (e.name, ".") && strcmp (e.name, ".."))
@@ -283,9 +283,9 @@ dir_is_empty (struct dir *dir)
 	struct dir_entry e;
 	off_t ofs;
 
-	for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, os) == sizeof e; ofs+= sizeof e)
+	for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e; ofs+= sizeof e)
 	{
-		if (e.inode_sector)	// If inode sector is not 0, there exists some file(or directory)
+		if (e.in_use)	// If inode sector is not 0, there exists some file(or directory)
 			return false;
 	}	
 	return true;

@@ -58,6 +58,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
 			return inode->data.index[i];
 		else
 		{
+			printf ("bytes large\n");
 			uint16_t buf[32];
 			disk_read (filesys_disk, inode->data.index[250], buf);
 			i -= 250;
@@ -116,26 +117,34 @@ inode_create (disk_sector_t sector, off_t length)
 			uint16_t buf2[32];
 			/* Indirect allocate */
 			for (i=250; i<sectors; i++){
+				printf ("create large\n");
 				if (sectors - i >= 32)
 				{
 					int j;
 					free_map_allocate (1, buf1[(i-250)/32]);
-					for (j=0; j<32; j++)
-						free_map_allocate (1, buf2[j]);
-					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
-					i += 31;
-				}
-				else
-				{
-					int j;
-					free_map_allocate (1, buf1[(i-250)/32]);
-					for (j=0; j<sectors-i; j++){
+					for (j=0; j<32; j++){
 						free_map_allocate (1, buf2[j]);
 						disk_write (filesys_disk, buf2[j], zeros);
 					}
 					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
+					i += 31;
+				}
+				else
+				{	
+					printf ("else condition\n");
+					int j;
+					free_map_allocate (1, buf1[(i-250)/32]);
+					printf ("1\n");
+					for (j=0; j<sectors-i; j++){
+						free_map_allocate (1, buf2[j]);
+						disk_write (filesys_disk, buf2[j], zeros);
+					}
+					printf ("2\n");
+					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
+					printf ("3\n");
 				}
 				disk_write (filesys_disk, disk_inode->index[250], buf1);
+					printf ("4\n");
 			}
 
 			disk_write (filesys_disk, sector, disk_inode);
