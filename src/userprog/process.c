@@ -20,6 +20,7 @@
 #include "threads/vaddr.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "filesys/cache.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -34,7 +35,6 @@ process_execute (const char *file_name)
   char *fn_copy, *fp, t_name[16];
   tid_t tid;
   int i = 0;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -49,17 +49,22 @@ process_execute (const char *file_name)
   }
   strlcpy (t_name, fn_copy, i+1);
   t_name[i] = 0;
-
-  /* Create a new thread to execute FILE_NAME. */
+printf("enter the execute \n");
+printf("t_name : %s\n", t_name);
+/* Create a new thread to execute FILE_NAME. */
   tid = thread_create (t_name, PRI_DEFAULT, start_process, fn_copy);
   sema_down (&thread_current ()->load_wait); 
  
+printf("after create\n");
+
 	if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+printf("not error\n");
   if (thread_current ()->load_fail){
     thread_current ()->load_fail = true;
     tid = -1;
   }
+	printf("tid : %d\n", tid);
   return tid;
 }
 
@@ -243,6 +248,12 @@ process_exit (void)
       pagedir_activate (NULL);
 //      pagedir_destroy (pd);
     }
+
+	int i;
+	for (i=0; i<CACHE_SIZE; i++)
+		if (cvalid[i])
+			cache_out (i);
+	
 	file_close (curr->self);
 	curr->self = NULL;
   sema_up (&curr->p_wait);
