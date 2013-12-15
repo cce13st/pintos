@@ -55,8 +55,9 @@ filesys_create (const char *name, off_t initial_size)
 	struct dir *dir;
 	if (pos == 0) {
 		//dir = dir_open(inode_open (thread_current()->cur_dir));
-		if (name[0] == '/')
+		if (name[0] == '/') {
 			dir = dir_open_root ();
+		}
 		else {
 			dir = dir_open (inode_open (thread_current ()-> cur_dir));
 			pos = -1;
@@ -110,9 +111,22 @@ filesys_open (const char *name)
 //		printf("get_directory in open\n");
 		dir = get_directory (buf, name[0] == '/');
 	}
+
+/*	printf("filesys_open %d,%s\n", inode_get_inumber(dir_get_inode(dir)),name);
+	char test[24];
+	dir_readdir (dir, test);
+	printf("readdir : %s\n", test);
+	dir_readdir (dir, test);
+	printf("readdir : %s\n", test);
+	dir_readdir (dir, test);
+	printf("readdir : %s\n", test);
+*/
 	if (dir != NULL) {
-    if (name[0] =='/' && name[1] == 0) 
+    if (name[0] =='/' && name[1] == 0){
 			inode = dir_get_inode(dir);
+			inode_set_is_dir (inode, true);
+			//printf ("test filesys_create : root is dir? %d\n", inode_is_dir(inode));
+		}
 		else{
 			dir_lookup (dir, name+pos+1, &inode);
 		}

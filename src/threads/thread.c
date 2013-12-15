@@ -208,7 +208,6 @@ thread_create (const char *name, int priority,
   t->load_fail = false;
   list_push_back (&thread_current ()->childs, &ip->info_elem);
  	t->cur_dir = thread_current()->cur_dir;
-
   /* Add to run queue. */
   thread_unblock (t);
   thread_yield ();

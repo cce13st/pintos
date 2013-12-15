@@ -286,8 +286,9 @@ syscall_open (struct intr_frame *f)
 	struct file *target_file;
 	struct file_info *fip;
 	t = thread_current();
-//printf("%s\n", file);
+//	printf("in syscall_open : %s\n", file);
 	target_file = filesys_open(file);
+
 
 	if (target_file == NULL){
 		f->eax = -1;

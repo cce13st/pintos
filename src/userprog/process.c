@@ -49,22 +49,22 @@ process_execute (const char *file_name)
   }
   strlcpy (t_name, fn_copy, i+1);
   t_name[i] = 0;
-printf("enter the execute \n");
-printf("t_name : %s\n", t_name);
+//printf("enter the execute \n");
+//printf("t_name : %s, %s\n", t_name, fn_copy);
 /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (t_name, PRI_DEFAULT, start_process, fn_copy);
   sema_down (&thread_current ()->load_wait); 
  
-printf("after create\n");
+//printf("after create\n");
 
 	if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-printf("not error\n");
+//printf("not error\n");
   if (thread_current ()->load_fail){
     thread_current ()->load_fail = true;
     tid = -1;
   }
-	printf("tid : %d\n", tid);
+//	printf("tid : %d\n", tid);
   return tid;
 }
 

@@ -157,6 +157,7 @@ inode_create (disk_sector_t sector, off_t length)
 			if (250 <= sectors)
 				disk_write (filesys_disk, disk_inode->index[250], buf1);
 			disk_write (filesys_disk, sector, disk_inode);
+			disk_inode->is_dir = false;
 			success = true;
 			free (buf1);
 			free (buf2);
