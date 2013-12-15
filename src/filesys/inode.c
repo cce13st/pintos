@@ -236,13 +236,15 @@ inode_close (struct inode *inode)
 
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
-
+			
+			lock_acquire (&cache_lock);
 			for (i=0; i<bytes_to_sectors (inode->data.length); i++){
 				int exist = cache_find (inode->data.index[i]);
 				if (exist != -1){
 					cache_out (exist);
 				}
 			}
+			lock_release (&cache_lock);
 
       /* Deallocate blocks if removed. */
       if (inode->removed) 
