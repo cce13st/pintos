@@ -233,8 +233,9 @@ inode_close (struct inode *inode)
 
 			for (i=0; i<bytes_to_sectors (inode->data.length); i++){
 				int exist = cache_find (inode->data.index[i]);
-				if (exist != -1)
+				if (exist != -1){
 					cache_out (exist);
+				}
 			}
 
       /* Deallocate blocks if removed. */
