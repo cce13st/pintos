@@ -119,7 +119,12 @@ inode_create (disk_sector_t sector, off_t length)
 				disk_write (filesys_disk, disk_inode->index[i], zeros);
 			}
 			uint16_t *buf1 = malloc (512);
-			uint16_t *buf2 = malloc (512);;
+			uint16_t *buf2 = malloc (512);
+			for (i=0; i<256; i++){
+				buf1[i] = 0;
+				buf2[i] = 0;
+			}
+
 			/* Indirect allocate */
 			if (250 <= sectors)
 				free_map_allocate (1, disk_inode->index+250);

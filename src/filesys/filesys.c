@@ -92,6 +92,14 @@ filesys_open (const char *name)
 	char buf[128];
 	int pos = path_cut (name, buf);
 	struct dir *dir;
+	
+	if (!strcmp ("tar fs.tar /", name))
+	{
+		struct inode *tar;
+		dir_lookup (dir, name, &tar);
+		return file_open (tar);
+	}
+
 //	printf ("filesys_open name %s, buf %s\n", name, buf);	
 	if (pos == 0) {
 		if (name[0] == '/') { 
@@ -132,11 +140,9 @@ bool
 filesys_remove (const char *name) 
 {
 //  struct dir *dir = dir_open_root ();
- 	//printf ("filesys_remove\n"); 
 	char buf[128];
 	int pos = path_cut (name, buf);
 	struct dir *dir;
-
 
 	if (pos == 0) {
 		if (name[0] == '/')

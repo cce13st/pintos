@@ -258,13 +258,13 @@ syscall_remove (struct intr_frame *f)
 {
 	const char *file;
 	memcpy (&file, f->esp+4, sizeof (char *));
-
 	lock_acquire (&syscall_lock);
+	
 	if (!file)
-		//exit???
 		f->eax = false;
-	else 
+	else {
 		f->eax = filesys_remove(file);
+	}
 	lock_release (&syscall_lock);
 }
 
@@ -617,7 +617,6 @@ syscall_chdir (struct intr_frame *f)
 	const char *name;
 	memcpy (&name, f->esp+4, sizeof(char *));
 	
-
 	if (name == NULL || *name =='\0') {
 		f->eax = false;
 		return;
@@ -635,7 +634,6 @@ syscall_chdir (struct intr_frame *f)
 //	printf("pass\n");
 	thread_current ()->cur_dir = inode_get_inumber (dir_get_inode (new));
 //printf("%d\n", inode_is_dir(dir_get_inode(new)));	
-//	printf("cur_dir : %x\n", thread_current()->cur_dir);
 	dir_close (new);
 	f->eax = true;
 	return;
@@ -772,9 +770,3 @@ syscall_inumber (struct intr_frame *f)
 //	printf("f->eax : %x\n", f->eax);
 	return;
 }
-
-
-
-
-
-

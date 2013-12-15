@@ -235,6 +235,7 @@ dir_remove (struct dir *dir, const char *name)
 bool
 dir_exist_parent (struct dir *dir, struct inode *inode)
 {
+/*	printf ("asdf\n");
 	struct dir *base = dir_open_root ();
 	if (base == dir){
 		dir_close (base);
@@ -252,7 +253,27 @@ dir_exist_parent (struct dir *dir, struct inode *inode)
 	parent = dir_open (temp);
 	bool success = dir_exist_parent (parent, inode);
 	dir_close (parent);
-	return success;
+	return success;*/
+
+	struct dir *prev;
+	struct dir *parent = dir;
+	struct dir *base = dir_open_root ();
+	while (parent != base) {
+		if (parent->inode == inode){
+			return true;
+			}
+
+		struct inode *temp;
+		if (!dir_lookup (parent, "..", &temp)){
+			return false;
+			}
+		prev = parent;
+		parent = dir_open (temp);
+		dir_close (prev);
+	}
+	dir_close(base);
+	return false;
+
 }
 
 /* Reads the next directory entry in DIR and stores the name in
@@ -303,8 +324,6 @@ get_directory (char *path, bool absolute)
 	else 
 		base = dir_open (inode_open  (thread_current ()->cur_dir));
 	
-	//printf ("get_directory path %s %d\n", path, inode_get_inumber (dir_get_inode(base)));
-	
 	if (strlen(path) !=1 && strrchr (path,'/')!=NULL && *(strrchr (path, '/') +1) == '\0') {
 		dir_close(base);
 		return NULL;
@@ -314,38 +333,28 @@ get_directory (char *path, bool absolute)
 	int pos = 0;
 	char buf[17];
 	target = base;
-/*
-	dir_readdir (base, buf);
-	printf ("read %s\n", buf);
-	dir_readdir (base, buf);
-	printf ("read %s\n", buf);
-	dir_readdir (base, buf);
-	printf ("read %s\n", buf);
-	dir_readdir (base, buf);
-	printf ("read %s\n", buf);
-	printf ("--------------\n");
-*/
 	if (absolute)
 		++pos;
 
+	prev = base;
 	while (pos < strlen(path))
 	{
-		if (target == NULL)
+		if (target == NULL){
+			dir_close (prev);
 			return NULL;
+		}
 		pos = path_parse (path, pos, buf);
-		//printf("pos : %d\n", pos);
-		if (pos == -1)
+		if (pos == -1){
+			dir_close (prev);
 			break;
-		//printf ("In get, path parse %s\n", buf);
+		}
+		
 		/* Search directory to use buf */
 		prev = target;
-		//printf("base inode : %x\n", dir_get_inode(base));
-		dir_lookup (target, buf, &inode);
-		//printf("buf : %s\n", buf);
-		//printf("target inode : %x\n", dir_get_inode(target));
-		//char test[24];
-		//dir_readdir(base,test);
-		//printf("test : %s\n", test);
+		if (!dir_lookup (target, buf, &inode)){
+			dir_close (prev);
+			return NULL;
+		}
 		target = dir_open (inode);
 		dir_close (prev);
 	}
