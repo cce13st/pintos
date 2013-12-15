@@ -153,7 +153,10 @@ syscall_exit (int status)
   thread_current ()->ip->exit = true;
   thread_current ()->ip->exit_status = status;
   printf ("%s: exit(%d)\n", thread_name (), status);
-  thread_exit ();
+  
+	
+	
+	thread_exit ();
 }
 
 static void

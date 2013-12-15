@@ -93,12 +93,6 @@ filesys_open (const char *name)
 	int pos = path_cut (name, buf);
 	struct dir *dir;
 	
-	if (!strcmp ("tar fs.tar /", name))
-	{
-		struct inode *tar;
-		dir_lookup (dir, name, &tar);
-		return file_open (tar);
-	}
 
 //	printf ("filesys_open name %s, buf %s\n", name, buf);	
 	if (pos == 0) {
@@ -126,6 +120,7 @@ filesys_open (const char *name)
 		dir_close (dir);
 		return NULL;
 	}
+
 	dir_close (dir);
 //printf("is dir : %d\n", inode_is_dir(inode));
 //printf("inode : %x\n", inode);
