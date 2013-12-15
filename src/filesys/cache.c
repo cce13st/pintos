@@ -20,6 +20,8 @@ cache_init ()
 	cused = malloc (sizeof (int) * CACHE_SIZE);			// store rucnt for LRU eviction policy
 	for (i=0; i<CACHE_SIZE; i++)
 		cvalid[i] = false;
+
+	lock_init (&cache_lock);
 }
 
 int
@@ -81,16 +83,19 @@ cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
   disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
 	
 	memcpy (cdata + empty * DISK_SECTOR_SIZE + ofs, buf, size);
-	//hex_dump (cdata+target*DISK_SECTOR_SIZE, cdata+target*DISK_SECTOR_SIZE, 512, true);
 }
 
 int
 cache_get ()
 {
+	lock_acquire (&cache_lock);
 	int i;
-	for (i=0; i<CACHE_SIZE; i++)
-		if (!cvalid[i])
+	for (i=0; i<CACHE_SIZE; i++){
+		if (!cvalid[i]){
+			lock_release (&cache_lock);
 			return i;
+		}
+	}
 	
 	/* Eviction process */
 	int max = 0, midx = 0;
@@ -102,6 +107,7 @@ cache_get ()
 	}
 
 	cache_out (midx);
+	lock_release (&cache_lock);
 	return midx;
 }
 

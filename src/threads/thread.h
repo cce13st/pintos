@@ -102,6 +102,7 @@ struct thread
 		/* For fd_table - syscall file */
 		int cur_fd;
 		struct list fd_table;
+		bool fd_alloc[128];
 		struct file *self;
 
     /* For Parent-Child relation */

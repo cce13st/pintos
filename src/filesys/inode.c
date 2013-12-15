@@ -8,6 +8,8 @@
 #include "threads/malloc.h"
 #include "filesys/cache.h"
 
+#include "threads/thread.h"
+
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -58,12 +60,15 @@ byte_to_sector (const struct inode *inode, off_t pos)
 			return inode->data.index[i];
 		else
 		{
-			printf ("bytes large\n");
-			uint16_t buf[32];
-			disk_read (filesys_disk, inode->data.index[250], buf);
+			uint16_t *buf1 = malloc (512);
+			uint16_t *buf2 = malloc (512);
+			disk_read (filesys_disk, inode->data.index[250], buf1);
 			i -= 250;
-			disk_read (filesys_disk, buf[i/32], buf);
-			return buf[i%32];
+			disk_read (filesys_disk, buf1[i/256], buf2);
+			uint16_t result = buf2[i%256];
+			free (buf1);
+			free (buf2);
+			return result;
 		}
 	}
   else
@@ -113,42 +118,43 @@ inode_create (disk_sector_t sector, off_t length)
 				free_map_allocate (1, disk_inode->index+i);
 				disk_write (filesys_disk, disk_inode->index[i], zeros);
 			}
-			uint16_t buf1[32];
-			uint16_t buf2[32];
+			uint16_t *buf1 = malloc (512);
+			uint16_t *buf2 = malloc (512);;
 			/* Indirect allocate */
+			if (250 <= sectors)
+				free_map_allocate (1, disk_inode->index+250);
+
 			for (i=250; i<sectors; i++){
-				printf ("create large\n");
-				if (sectors - i >= 32)
+				if (sectors - i >= 256)
 				{
-					int j;
-					free_map_allocate (1, buf1[(i-250)/32]);
-					for (j=0; j<32; j++){
-						free_map_allocate (1, buf2[j]);
+					int j, k = (i-250)/256;
+					free_map_allocate (1, buf1+k);
+					for (j=0; j<256; j++){
+						free_map_allocate (1, buf2+j);
 						disk_write (filesys_disk, buf2[j], zeros);
 					}
-					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
-					i += 31;
+					disk_write (filesys_disk, buf1[k], buf2);
+					i += 255;
 				}
 				else
 				{	
-					printf ("else condition\n");
-					int j;
-					free_map_allocate (1, buf1[(i-250)/32]);
-					printf ("1\n");
+					int j, k = (i-250)/256;
+					free_map_allocate (1, buf1+k);
 					for (j=0; j<sectors-i; j++){
-						free_map_allocate (1, buf2[j]);
+						free_map_allocate (1, buf2+j);
 						disk_write (filesys_disk, buf2[j], zeros);
 					}
-					printf ("2\n");
-					disk_write (filesys_disk, buf1[(i-250)/32], buf2);
-					printf ("3\n");
+					disk_write (filesys_disk, buf1[k], buf2);
+					break;
 				}
-				disk_write (filesys_disk, disk_inode->index[250], buf1);
-					printf ("4\n");
 			}
 
+			if (250 <= sectors)
+				disk_write (filesys_disk, disk_inode->index[250], buf1);
 			disk_write (filesys_disk, sector, disk_inode);
 			success = true;
+			free (buf1);
+			free (buf2);
       free (disk_inode);
     }
   return success;

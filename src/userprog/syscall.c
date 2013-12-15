@@ -49,7 +49,7 @@ bool
 validate_fd (int fd)
 {
 	if (fd < 0 || fd > 127) return false;
-	if (fd > thread_current ()->cur_fd) return false;
+	//if (fd > thread_current ()->cur_fd) return false;
 	if (fd != 0 && fd!= 1 && find_by_fd(fd) == NULL) return false;
 	return true;
 }
@@ -292,11 +292,27 @@ syscall_open (struct intr_frame *f)
 		return;
 	}
 	fip = malloc (sizeof (struct file_info));
-	fip->fd = t->cur_fd; 
+
+	int fd = get_fd ();
+	//printf ("fd %d\n", fd);
+	fip->fd = fd; 
 	fip->f = target_file;
 	list_push_back (&t->fd_table, &fip->elem);
-	f->eax = t->cur_fd++;
+	f->eax = fd++;
 	lock_release (&syscall_lock);
+}
+
+static int
+get_fd (void)
+{
+	int i;
+	for (i=2; i<128; i++){
+		if (!thread_current ()->fd_alloc[i]){
+			thread_current ()->fd_alloc[i] = true;
+			break;
+		}
+	}
+	return i;
 }
 
 static void
@@ -403,6 +419,7 @@ syscall_close(struct intr_frame *f) {
 	list_remove (&fip->elem);
 	file_close(target_file);
 	free(fip);
+	thread_current ()->fd_alloc[fd] = false;
 	lock_release (&syscall_lock);
 }
 
@@ -659,7 +676,7 @@ syscall_mkdir (struct intr_frame *f)
 
 	/* add up the new dir */
 	bool success = (free_map_allocate (1, &inode_sector)
-									&& dir_create (inode_sector, 16)
+									&& dir_create (inode_sector, 8)
 									&& dir_add (base, name+pos+1, inode_sector));
 	/* If it fails allocation */
 	 //inode_sector check? 
@@ -685,7 +702,7 @@ syscall_readdir (struct intr_frame *f)
 	int fd;
 	char *name;
 	memcpy (&fd, f->esp+4, sizeof (int));
-	memcpy (&name, f->esp+8, sizeof (char));
+	memcpy (&name, f->esp+8, sizeof (char *));
 
  	if (!validate_fd(fd) || name == NULL) {
 		f->eax = false;

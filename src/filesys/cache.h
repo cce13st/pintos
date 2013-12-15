@@ -6,6 +6,7 @@
 #include "devices/disk.h"
 #endif /* filesys/inode.h */
 
+#include "threads/synch.h"
 /* Define Disk cache buffer size */
 #define CACHE_SIZE 128
 
@@ -22,3 +23,5 @@ void cache_read (disk_sector_t, off_t, char *, int);
 void cache_write (disk_sector_t, off_t, char *, int);
 int cache_get (void);
 void cache_out (int);
+
+struct lock cache_lock;
