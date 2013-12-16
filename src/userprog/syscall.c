@@ -595,7 +595,7 @@ path_parse (char *name, int pos, char *buf)
 		return -1;
 	while (pos < strlen (name))
 	{
-		if (name[0] == '/' && name[1] == '/'){
+		if (name[pos] == '/' && name[pos-1] == '/'){
 			pos++;
 		}	
 		if (name[pos] == '/'){
