@@ -249,10 +249,12 @@ process_exit (void)
 //      pagedir_destroy (pd);
     }
 
+	lock_acquire (&cache_lock);
 	int i;
 	for (i=0; i<CACHE_SIZE; i++)
 		if (cvalid[i])
 			cache_out (i);
+	lock_release (&cache_lock);
 	
 	file_close (curr->self);
 	curr->self = NULL;
