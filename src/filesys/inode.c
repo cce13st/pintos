@@ -336,11 +336,46 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 			inode->data.length += extend;
 		else
 		{
-			for (i=0; i<bytes_to_sectors (extend); i++){
-				free_map_allocate (1, inode->data.index+sectors+i);
-				disk_write (filesys_disk, inode->data.index[sectors+i], zeros);
-			}
 			inode->data.length += extend;
+			int exs = bytes_to_sectors (extend);
+
+			/* Direct allocate */
+			for (i=sectors; i<250 && i<exs+sectors; i++){
+				free_map_allocate (1, inode->data.index+i);
+				disk_write (filesys_disk, inode->data.index[i], zeros);
+			}
+			uint16_t *buf1 = malloc (512);
+			uint16_t *buf2 = malloc (512);
+			for (i=0; i<256; i++){
+				buf1[i] = 0;
+				buf2[i] = 0;
+			}
+
+			/* Indirect allocate */
+			if (250 <= sectors+exs && sectors < 250){
+				free_map_allocate (1, inode->data.index+250);
+				disk_write (filesys_disk, inode->data.index[250], zeros);
+			}
+
+			disk_read (filesys_disk, inode->data.index[250], buf1);
+			for (i=250; i<sectors+exs; i++){
+				if (sectors > 250)
+					i = sectors;
+				int j = (i-250)%256, k = (i-250)/256;
+				if (j == 0){
+					free_map_allocate (1, buf1+k);
+					disk_write (filesys_disk, buf1[k], zeros);
+				}
+				disk_read (filesys_disk, buf1[k], buf2);
+				free_map_allocate (1, buf2+j);
+				disk_write (filesys_disk, buf2[j], zeros);
+				disk_write (filesys_disk, buf1[k], buf2);
+			}
+
+			if (250 <= sectors+exs)
+				disk_write (filesys_disk, inode->data.index[250], buf1);
+			free (buf1);
+			free (buf2);
 		}
 		disk_write (filesys_disk, inode->sector, &inode->data);
 	}
@@ -360,7 +395,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-			
+		
 			cache_write (sector_idx, sector_ofs, buffer + bytes_written, chunk_size);
 
       /* Advance. */
