@@ -50,6 +50,12 @@ cache_read (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 		lock_release (&cache_lock);
 		return;
 	}
+
+	if (buf == 0x80480a0)
+	{
+		lock_release (&cache_lock);
+		memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
+	}
 	
 	/* else, find from disk */
 	int empty = cache_get ();
