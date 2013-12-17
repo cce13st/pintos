@@ -236,26 +236,6 @@ dir_remove (struct dir *dir, const char *name)
 bool
 dir_exist_parent (struct dir *dir, struct inode *inode)
 {
-/*	printf ("asdf\n");
-	struct dir *base = dir_open_root ();
-	if (base == dir){
-		dir_close (base);
-		return false;
-	}
-	dir_close (base);
-	
-	if (dir->inode == inode)
-		return true;
-
-	struct inode *temp;
-	struct dir *parent;
-	if (!dir_lookup (dir, "..", &temp))
-		return false;
-	parent = dir_open (temp);
-	bool success = dir_exist_parent (parent, inode);
-	dir_close (parent);
-	return success;*/
-
 	struct dir *prev;
 	struct dir *parent = dir;
 	struct dir *base = dir_open_root ();
@@ -359,6 +339,5 @@ get_directory (char *path, bool absolute)
 		target = dir_open (inode);
 		dir_close (prev);
 	}
-	//printf ("get directory end\n");
 	return target;
 }

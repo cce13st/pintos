@@ -71,7 +71,6 @@ filesys_create (const char *name, off_t initial_size)
                   && inode_create (inode_sector, initial_size)
                   && dir_add (dir, name+pos+1, inode_sector));
 
-//printf("create inode : %x\n", dir_get_inode(dir));
 	if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -87,7 +86,6 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
- // struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
 	char buf[128];
@@ -95,49 +93,31 @@ filesys_open (const char *name)
 	struct dir *dir;
 	
 
-//	printf ("filesys_open name %s, buf %s\n", name, buf);	
 	if (pos == 0) {
 		if (name[0] == '/') { 
 			dir = dir_open_root();
-	//		printf("root\n");
 		}
 		else {
-		//	printf("not root\n");
 			dir = dir_open(inode_open (thread_current()->cur_dir));
 			pos = -1;
 		}
 	}
-	else {
-//		printf("get_directory in open\n");
+	else 
 		dir = get_directory (buf, name[0] == '/');
-	}
 
-/*	printf("filesys_open %d,%s\n", inode_get_inumber(dir_get_inode(dir)),name);
-	char test[24];
-	dir_readdir (dir, test);
-	printf("readdir : %s\n", test);
-	dir_readdir (dir, test);
-	printf("readdir : %s\n", test);
-	dir_readdir (dir, test);
-	printf("readdir : %s\n", test);
-*/
 	if (dir != NULL) {
     if (name[0] =='/' && name[1] == 0){
 			inode = dir_get_inode(dir);
 			inode_set_is_dir (inode, true);
-			//printf ("test filesys_create : root is dir? %d\n", inode_is_dir(inode));
 		}
-		else{
+		else
 			dir_lookup (dir, name+pos+1, &inode);
-		}
-	}else {
+	} else {
 		dir_close (dir);
 		return NULL;
 	}
 
 	dir_close (dir);
-//printf("is dir : %d\n", inode_is_dir(inode));
-//printf("inode : %x\n", inode);
   return file_open (inode);
 }
 
@@ -148,7 +128,6 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-//  struct dir *dir = dir_open_root ();
 	char buf[128];
 	int pos = path_cut (name, buf);
 	struct dir *dir;
@@ -158,13 +137,11 @@ filesys_remove (const char *name)
 			dir = dir_open_root();
 		else {
 			dir = dir_open(inode_open (thread_current()->cur_dir));
-			//dir = dir_open_root ();
 			pos = -1;
 		}
 	} else {	
 		dir = get_directory (buf,*name == '/');
 	}
-	//TODO
 	if (strlen (name) == 2 && name[0] == '/')
 		pos = 0;
 	

@@ -218,10 +218,6 @@ syscall_write (struct intr_frame *f)
 		struct file *target_file;
 		target_file = find_by_fd (fd)->f;
 
-//printf("file's inode : %x\n", file_get_inode (target_file));
-//printf("inode is dir? %d\n", inode_is_dir (file_get_inode (target_file)));
-
-
 		if(!target_file)
 			f->eax = -1;
 		else if (inode_is_dir (file_get_inode (target_file)))
@@ -286,7 +282,6 @@ syscall_open (struct intr_frame *f)
 	struct file *target_file;
 	struct file_info *fip;
 	t = thread_current();
-//	printf("in syscall_open : %s\n", file);
 	target_file = filesys_open(file);
 
 
@@ -298,7 +293,6 @@ syscall_open (struct intr_frame *f)
 	fip = malloc (sizeof (struct file_info));
 
 	int fd = get_fd ();
-	//printf ("fd %d\n", fd);
 	fip->fd = fd; 
 	fip->f = target_file;
 	list_push_back (&t->fd_table, &fip->elem);
@@ -463,7 +457,6 @@ find_by_mapid (int mapid)
 	  
 		ittr = list_next (ittr);
 	}
-	//printf ("Find mapid failed!\n");
 	return NULL;
 }
 
@@ -483,13 +476,7 @@ syscall_mmap (struct intr_frame *f)
 		lock_release (&syscall_lock);
 		syscall_exit (-1);
 	}
-	//printf ("fd : %d addr : %x\n", fd, addr);
-/*	if (!validate_address (addr)) {
-		lock_release (&syscall_lock);
-		syscall_exit (-1);
-	}
-	printf ("fd : %d addr : %x\n", fd, addr);
-*/	
+	
 	/*check whether fd is 0 or 1 */
 	if (fd ==0 || fd ==1) {
 		f->eax = -1;
@@ -630,16 +617,11 @@ syscall_chdir (struct intr_frame *f)
 
 	struct dir *new;
 	new = get_directory (name, path_abs (name));
-	//printf("name : %s\n", name);
-	//printf("%d\n", new == NULL);
-	//
 	if (new == NULL) {
 		f->eax = false;
 		return ;
 	}
-//	printf("pass\n");
 	thread_current ()->cur_dir = inode_get_inumber (dir_get_inode (new));
-//printf("%d\n", inode_is_dir(dir_get_inode(new)));	
 	dir_close (new);
 	f->eax = true;
 	return;
@@ -773,6 +755,5 @@ syscall_inumber (struct intr_frame *f)
 	}
 
 	f->eax = inode_get_inumber (file_get_inode (target_file));
-//	printf("f->eax : %x\n", f->eax);
 	return;
 }
