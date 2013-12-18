@@ -405,7 +405,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
-	//printf ("written %d, size %d\n", bytes_written, a);
   return bytes_written;
 }
 
