@@ -115,7 +115,8 @@ inode_create (disk_sector_t sector, off_t length)
 			static char zeros[DISK_SECTOR_SIZE];
 			/* Direct allocate */
 			for (i=0; i<250 && i<sectors; i++){
-				free_map_allocate (1, disk_inode->index+i);
+				if (!free_map_allocate (1, disk_inode->index+i))
+					return false;
 				disk_write (filesys_disk, disk_inode->index[i], zeros);
 			}
 			uint16_t *buf1 = malloc (512);
@@ -127,15 +128,18 @@ inode_create (disk_sector_t sector, off_t length)
 
 			/* Indirect allocate */
 			if (250 <= sectors)
-				free_map_allocate (1, disk_inode->index+250);
+				if (!free_map_allocate (1, disk_inode->index+250))
+					return false;
 
 			for (i=250; i<sectors; i++){
 				if (sectors - i >= 256)
 				{
 					int j, k = (i-250)/256;
-					free_map_allocate (1, buf1+k);
+					if (!free_map_allocate (1, buf1+k))
+						return false;
 					for (j=0; j<256; j++){
-						free_map_allocate (1, buf2+j);
+						if (!free_map_allocate (1, buf2+j))
+							return false;
 						disk_write (filesys_disk, buf2[j], zeros);
 					}
 					disk_write (filesys_disk, buf1[k], buf2);
@@ -144,9 +148,11 @@ inode_create (disk_sector_t sector, off_t length)
 				else
 				{	
 					int j, k = (i-250)/256;
-					free_map_allocate (1, buf1+k);
+					if (!free_map_allocate (1, buf1+k))
+						return false;
 					for (j=0; j<sectors-i; j++){
-						free_map_allocate (1, buf2+j);
+						if (!free_map_allocate (1, buf2+j))
+							return false;
 						disk_write (filesys_disk, buf2[j], zeros);
 					}
 					disk_write (filesys_disk, buf1[k], buf2);
@@ -293,9 +299,27 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-
+			lock_acquire (&cache_lock);
 			cache_read (sector_idx, sector_ofs, buffer + bytes_read, chunk_size);
-      
+			lock_release (&cache_lock);
+  
+	/*
+			if (sector_ofs == 0 && chunk_size == DISK_SECTOR_SIZE) 
+			         {
+													           disk_read (filesys_disk, sector_idx, buffer + bytes_read); 
+																		         }
+																						       else 
+																										         {
+																																				           if (bounce == NULL) 
+																																										             {
+																																																	               bounce = malloc (DISK_SECTOR_SIZE);
+																																																								               if (bounce == NULL)
+																																																																                 break;
+																																																																								             }
+																																																																														           disk_read (filesys_disk, sector_idx, bounce);
+																																																																																			           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
+																																																																																								         }
+*/
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
@@ -395,8 +419,33 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-		
+	
+			lock_acquire (&cache_lock);
 			cache_write (sector_idx, sector_ofs, buffer + bytes_written, chunk_size);
+			lock_release (&cache_lock);
+
+/*
+if (sector_ofs == 0 && chunk_size == DISK_SECTOR_SIZE) 
+	        {
+											          disk_write (filesys_disk, sector_idx, buffer + bytes_written); 
+																        }
+																				      else 
+																								        {
+																																		          if (bounce == NULL) 
+																																								            {
+																																															              bounce = malloc (DISK_SECTOR_SIZE);
+																																																						              if (bounce == NULL)
+																																																														                break;
+																																																																						            }
+
+																																																																																	          if (sector_ofs > 0 || chunk_size < sector_left) 
+																																																																																							            disk_read (filesys_disk, sector_idx, bounce);
+																																																																																													          else
+																																																																																																			            memset (bounce, 0, DISK_SECTOR_SIZE);
+																																																																																																									          memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
+																																																																																																														          disk_write (filesys_disk, sector_idx, bounce); 
+																																																																																																																			        }
+*/
 
       /* Advance. */
       size -= chunk_size;

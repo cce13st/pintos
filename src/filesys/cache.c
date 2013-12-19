@@ -40,14 +40,14 @@ cache_find (disk_sector_t sector_idx)
 void
 cache_read (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 {
-	lock_acquire (&cache_lock);
+	//lock_acquire (&cache_lock);
 	int target = cache_find (sector_idx);
 //	printf ("cache_read %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
 	if (target != -1)
 	{
 		cused[target] = rucnt++;
 		memcpy (buf, cdata + target * DISK_SECTOR_SIZE + ofs, size);
-		lock_release (&cache_lock);
+		//lock_release (&cache_lock);
 		return;
 	}
 
@@ -66,13 +66,13 @@ cache_read (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
   disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
 	
 	memcpy (buf, cdata + empty * DISK_SECTOR_SIZE + ofs, size);
-	lock_release (&cache_lock);
+	//lock_release (&cache_lock);
 }
 
 void
 cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 {
-	lock_acquire (&cache_lock);
+	//lock_acquire (&cache_lock);
 	int target = cache_find (sector_idx);
 //	printf ("cache_write %x %d %x %d\n", filesys_disk, sector_idx, cdata, target);
 //	printf ("ofs %d, size %d buf %s\n", ofs, size, buf);
@@ -81,7 +81,7 @@ cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
 		cused[target] = rucnt++;
 		cdirty[target] = true;
 		memcpy (cdata + target * DISK_SECTOR_SIZE + ofs, buf, size);
-		lock_release (&cache_lock);
+		//lock_release (&cache_lock);
 		return;
 	}
 	
@@ -94,7 +94,7 @@ cache_write (disk_sector_t sector_idx, off_t ofs, char *buf, int size)
   disk_read (filesys_disk, sector_idx, cdata + empty * DISK_SECTOR_SIZE);
 	
 	memcpy (cdata + empty * DISK_SECTOR_SIZE + ofs, buf, size);
-	lock_release (&cache_lock);
+	//lock_release (&cache_lock);
 }
 
 int
